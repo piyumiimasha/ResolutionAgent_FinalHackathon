@@ -1,0 +1,124 @@
+# ============================================================================
+# IT Support Swarm — Model Configuration
+# Defines all LLM and embedding models used across the system.
+# Referenced by infrastructure/llm/factory.py and embeddings.py
+# ============================================================================
+
+# ============================================================================
+# Groq Models (primary LLM provider)
+# Fast inference, generous free tier, ideal for real-time IT support
+# ============================================================================
+groq:
+  base_url: https://api.groq.com/openai/v1   # OpenAI-compatible
+
+  chat:
+    # Used by: guardrail, router, l1_triage, distiller (bulk ingest)
+    small:
+      model:       llama-3.1-8b-instant
+      context_window: 131072              # 128K tokens
+      max_tokens:  1000
+      temperature: 0.1
+      notes: "~500 tok/s. Best for classification and extraction tasks."
+
+    # Used by: l2_investigator, l3_resolver
+    large:
+      model:       llama-3.3-70b-versatile
+      context_window: 131072
+      max_tokens:  2000
+      temperature: 0.1
+      notes: "Strong reasoning. Use for investigation and resolution."
+
+    # Optional — use for critical Type 4 outage resolution
+    reason:
+      model:       deepseek-r1-distill-llama-70b
+      context_window: 65536
+      max_tokens:  2000
+      temperature: 0.1
+      notes: "Chain-of-thought reasoning. Slower but more accurate for complex incidents."
+
+  # Groq rate limits (free tier)
+  rate_limits:
+    requests_per_minute: 30
+    tokens_per_minute:   6000
+    tokens_per_day:      500000
+
+# ============================================================================
+# OpenRouter (embedding provider + LLM fallback)
+# Used for embeddings since Groq does not offer embedding models
+# ============================================================================
+openrouter:
+  base_url: https://openrouter.ai/api/v1   # OpenAI-compatible
+
+  embedding:
+    # Used by: lt_store, procedural_store, cag_service, rag_service
+    # All vector stores are sized to 1536 to match this model
+    default:
+      model:       openai/text-embedding-3-small
+      dimensions:  1536
+      batch_size:  50
+      notes:       "Cost-effective. All Qdrant collections sized to 1536."
+
+    # Upgrade option if you want higher accuracy retrieval
+    large:
+      model:       openai/text-embedding-3-large
+      dimensions:  3072
+      batch_size:  20
+      notes:       "Higher accuracy but requires resizing all Qdrant collections to 3072."
+
+  # LLM fallback via OpenRouter (if Groq is down or rate-limited)
+  chat_fallback:
+    small:
+      model:       openai/gpt-4o-mini
+      context_window: 128000
+      max_tokens:  1000
+      temperature: 0.1
+
+    large:
+      model:       openai/gpt-4o
+      context_window: 128000
+      max_tokens:  2000
+      temperature: 0.1
+
+    reason:
+      model:       openai/o3-mini
+      context_window: 128000
+      max_tokens:  2000
+      temperature: 0.1
+
+# ============================================================================
+# Model routing — which tier each agent uses
+# Maps agent name → model tier → resolved model above
+# ============================================================================
+routing:
+  guardrail:       small     # fast PASS/FAIL, no reasoning needed
+  router:          none      # no LLM — pure vector cache lookup
+  l1_triage:       small     # classification only
+  l2_investigator: large     # needs to reason over metrics + history
+  l3_resolver:     large     # needs to synthesise runbook + findings
+  distiller:       small     # bulk extraction — speed > accuracy
+  cag_populator:   small     # FAQ generation — simple task
+
+# ============================================================================
+# Context window budget per agent
+# How many tokens each agent is allowed to send to the LLM
+# (system prompt + memory context + user message must fit within this)
+# ============================================================================
+context_budgets:
+  guardrail:       500       # system prompt + ticket text only
+  l1_triage:       2000      # prompt + memory context + ticket
+  l2_investigator: 6000      # prompt + metrics + past incidents + findings
+  l3_resolver:     6000      # prompt + runbook chunks + findings
+  distiller:       3000      # prompt + conversation text
+
+# ============================================================================
+# Cost reference (approximate USD per 1M tokens, as of mid-2025)
+# ============================================================================
+# Groq llama-3.1-8b-instant    : FREE (within rate limits)
+# Groq llama-3.3-70b-versatile : FREE (within rate limits)
+# OpenRouter gpt-4o-mini       : $0.15 input / $0.60 output
+# OpenRouter gpt-4o            : $2.50 input / $10.00 output
+# OpenRouter text-emb-3-small  : $0.02 per 1M tokens
+# ============================================================================
+# Recommendation: stay on Groq free tier for all LLM calls during development.
+# Only switch to OpenRouter fallback if you hit Groq rate limits in production.
+# ============================================================================

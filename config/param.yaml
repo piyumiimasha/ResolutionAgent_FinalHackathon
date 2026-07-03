@@ -1,0 +1,214 @@
+# ============================================================================
+# IT Support Swarm — Main Configuration
+# Edit this file to tune behavior without touching code.
+# All secrets stay in .env — only tunables live here.
+# ============================================================================
+
+# ============================================================================
+# Provider Settings
+# ============================================================================
+provider:
+  llm:       groq          # groq | openrouter (for LLM calls)
+  embedding: openrouter    # openrouter (OpenAI-compatible embeddings)
+
+# ============================================================================
+# LLM Settings
+# ============================================================================
+llm:
+  # Two tiers — small for fast/cheap nodes, large for reasoning nodes
+  # small → guardrail, router, l1_triage, distiller (bulk ingest)
+  # large → l2_investigator, l3_resolver (need reasoning power)
+  small_model: llama-3.1-8b-instant      # Groq: ~500 tok/s, very cheap
+  large_model: llama-3.3-70b-versatile   # Groq: strong reasoning
+
+  temperature:
+    default:    0.1    # low temp for factual IT responses
+    distiller:  0.1    # very low for extraction accuracy
+    resolver:   0.2    # slight creativity for fix proposals
+
+  max_tokens:
+    default:    1000
+    distiller:  300    # extraction is short
+    resolver:   1500   # L3 needs room for full resolution plan
+    guardrail:  50     # PASS/FAIL only
+
+  # Retry settings for Groq rate limits
+  retry_attempts: 3
+  retry_wait_seconds: 2
+
+# ============================================================================
+# Embedding Settings
+# ============================================================================
+embedding:
+  provider:   openrouter
+  model:      openai/text-embedding-3-small   # 1536 dimensions via OpenRouter
+  dimensions: 1536
+  batch_size: 50      # embeddings per OpenRouter API call
+  base_url:   https://openrouter.ai/api/v1
+
+# ============================================================================
+# Qdrant Vector Store
+# ============================================================================
+qdrant:
+  collections:
+    procedural_memory:
+      name:       procedural_memory
+      vector_size: 1536
+      distance:   Cosine
+      description: SOPs distilled from 1050 historical transcripts
+
+    cag_cache:
+      name:       cag_cache
+      vector_size: 1536
+      distance:   Cosine
+      description: High-frequency Tier 1 FAQ answers for fast-path
+
+    runbooks:
+      name:       runbooks
+      vector_size: 1536
+      distance:   Cosine
+      description: Chunked runbook markdown files for RAG
+
+# ============================================================================
+# Supabase Tables
+# ============================================================================
+supabase:
+  tables:
+    tickets:        tickets
+    server_metrics: server_metrics
+    services:       services
+    incident_history: incident_history
+    st_memory:      st_memory
+    lt_facts:       lt_facts
+    episodes:       episodes
+
+# ============================================================================
+# Memory System
+# ============================================================================
+memory:
+  short_term:
+    max_turns: 20              # ring buffer size per ticket
+    turns_in_prompt: 8        # how many ST turns to inject into agent prompt
+
+  long_term:
+    similarity_threshold: 0.75   # min cosine similarity for LT fact retrieval
+    top_k: 5                     # max facts to return per query
+    confidence_threshold: 0.70   # min LLM confidence to store a fact
+
+  episodic:
+    max_episodes_in_prompt: 2    # past episodes shown to agents
+
+  procedural:
+    top_k: 3                     # past SOPs shown to L2 investigator
+    filter_by_type: true         # filter SOPs by ticket type before search
+
+  recaller:
+    max_context_tokens: 1500     # total token budget for assembled memory context
+
+# ============================================================================
+# CAG (Cache-Augmented Generation)
+# ============================================================================
+cag:
+  similarity_threshold: 0.82    # cosine score above this = cache hit (fast-path)
+  min_frequency: 5              # min transcript occurrences to seed into cache
+  top_k: 1                      # return top 1 cache match only
+  ticket_types_cached: [1]      # only Type 1 (Access & Identity) goes into CAG
+
+# ============================================================================
+# RAG (Runbook Retrieval)
+# ============================================================================
+rag:
+  chunk_size: 500               # chars per runbook chunk
+  chunk_overlap: 50             # overlap between chunks
+  top_k: 3                      # runbook chunks returned to L3
+  similarity_threshold: 0.70    # min similarity for runbook retrieval
+  # CRAG validation: if retrieved chunk scores below this, don't use it
+  validation_threshold: 0.60
+
+# ============================================================================
+# Agent Swarm
+# ============================================================================
+agents:
+  max_retries: 3                # max tool retries before escalating to human
+  escalation_message: "This incident requires human intervention. Escalating to on-call engineer."
+
+  l1_triage:
+    model_tier: small
+    ticket_types: [1, 2, 3, 4]
+    severities: [low, medium, critical]
+
+  l2_investigator:
+    model_tier: large
+    metrics_lookback_hours: 1   # query metrics from last N hours
+    max_past_incidents: 3       # max past incidents to surface
+
+  l3_resolver:
+    model_tier: large
+    require_runbook: false      # if true, refuse to resolve without a runbook
+    mock_actions: true          # all Action MCP calls are mock (set false for real exec)
+
+# ============================================================================
+# MCP Servers
+# ============================================================================
+mcp:
+  mode: direct                  # direct | stdio (use direct for dev, stdio for prod)
+  servers:
+    ticketing:
+      tools: [create_ticket, get_ticket, update_ticket, list_tickets, close_ticket]
+    observability:
+      tools: [get_server_metrics, get_service_status, list_unhealthy, get_incident_history, query_metrics_range]
+    action:
+      tools: [restart_service, scale_service, flush_cache, rotate_credentials, run_runbook_step]
+
+# ============================================================================
+# Ingest Pipeline (runs offline, before app starts)
+# ============================================================================
+ingest:
+  azure:
+    container_name: transcripts
+    blob_prefix: historical_transcripts
+    upload_workers: 10          # parallel upload threads
+
+  distillation:
+    model: llama-3.1-8b-instant   # Groq model for bulk distillation
+    concurrent_calls: 5           # parallel Groq API calls (stay within rate limits)
+    batch_size: 20                # Qdrant upsert batch size
+    temperature: 0.1
+
+  cag_population:
+    min_frequency: 5              # overrides cag.min_frequency for initial seeding
+
+# ============================================================================
+# Observability (Langfuse)
+# ============================================================================
+observability:
+  enabled: true
+  host: https://cloud.langfuse.com
+  trace_agents: true              # trace every agent node
+  trace_memory: false             # set true for deep memory debugging
+  trace_mcp: true                 # trace MCP tool calls
+
+# ============================================================================
+# API Server
+# ============================================================================
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 1
+  reload: true                    # set false in production
+  cors_origins:
+    - http://localhost:3000
+    - http://localhost:8000
+
+# ============================================================================
+# Logging
+# ============================================================================
+logging:
+  level: INFO                     # DEBUG | INFO | WARNING | ERROR
+  format: "{time} | {level} | {name} | {message}"
+  colorize: true
+
+# ============================================================================
+# Environment
+# ============================================================================
+environment: development          # development | production
