@@ -17,7 +17,7 @@ from langchain_core.language_models import BaseChatModel
 from loguru import logger
 from dotenv import load_dotenv
 
-from infrastructure.config import get_config, get_models, get_groq_model
+from config import get_config, get_models, get_groq_model
 
 load_dotenv()
 

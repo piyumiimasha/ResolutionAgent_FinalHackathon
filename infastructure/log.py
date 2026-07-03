@@ -12,7 +12,7 @@ Features:
 
 import sys
 import logging
-from infrastructure.config import get_config
+from config import get_config
 
 
 class _InterceptHandler(logging.Handler):

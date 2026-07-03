@@ -23,7 +23,7 @@ from langfuse.callback import CallbackHandler
 from loguru import logger
 from dotenv import load_dotenv
 
-from infrastructure.config import get_config
+from config import get_config
 
 load_dotenv()
 
