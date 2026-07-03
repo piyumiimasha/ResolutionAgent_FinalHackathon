@@ -18,7 +18,7 @@ import logging
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from azure.storage.blob import BlobServiceClient
+from services.azure.blob_service_client import BlobServiceClient
 from dotenv import load_dotenv
 from loguru import logger
 
