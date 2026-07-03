@@ -29,7 +29,7 @@ import logging
 from dataclasses import dataclass
 from typing import Iterator
 
-from azure.storage.blob import BlobServiceClient
+from azure.blob_service_client import BlobServiceClient
 from dotenv import load_dotenv
 from loguru import logger
 

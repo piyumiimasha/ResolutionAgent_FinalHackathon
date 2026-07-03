@@ -23,7 +23,7 @@ from qdrant_client.models import PointStruct, VectorParams, Distance, Filter, Fi
 from loguru import logger
 from dotenv import load_dotenv
 
-from infrastructure.llm.embeddings import get_embedding
+from infastructure.llm.embeddings import get_embedding
 
 load_dotenv()
 

@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from services.ingest_service.transcript_reader import TranscriptReader, ParsedTranscript
-from infrastructure.llm.embeddings import get_embedding
+from infastructure.llm.embeddings import get_embedding
 
 load_dotenv()
 
