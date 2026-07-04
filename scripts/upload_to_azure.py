@@ -11,6 +11,9 @@ Requirements in .env:
     AZURE_STORAGE_CONNECTION_STRING=
     AZURE_CONTAINER_NAME=transcripts
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import os
 import json

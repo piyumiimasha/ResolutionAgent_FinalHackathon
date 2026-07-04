@@ -142,3 +142,5 @@ mypy>=1.8.0                       # Static type checking
 pytest>=8.0.0                     # Testing framework
 pytest-asyncio>=0.23.0            # Async test support
 
+azure-storage-blob==12.22.0
+azure-core==1.32.0
