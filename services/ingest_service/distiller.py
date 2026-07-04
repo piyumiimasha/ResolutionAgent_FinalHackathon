@@ -1,9 +1,13 @@
 """
 distiller.py — LLM distillation pipeline.
 
-Reads every transcript from Azure Blob, sends to Groq LLM,
-extracts Problem / Root Cause / Resolution, saves to Qdrant
-as Procedural Memory.
+Reads every transcript from Azure Blob via TranscriptReader,
+sends each conversation to Groq LLM, extracts:
+  - Problem
+  - Root Cause
+  - Resolution
+
+Saves all 1050 structured records to Qdrant as Procedural Memory.
 
 Run once before the app starts:
     python scripts/distill_transcripts.py
@@ -11,28 +15,28 @@ Run once before the app starts:
 
 import json
 import asyncio
-import logging
 from dataclasses import dataclass
 
 from groq import AsyncGroq
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
-from dotenv import load_dotenv
 from loguru import logger
+from dotenv import load_dotenv
 
+import os
 from services.ingest_service.transcript_reader import TranscriptReader, ParsedTranscript
-from infastructure.llm.embeddings import get_embedding
+from infastructure.llm.embeddings import get_embedding, get_embeddings_batch
+from infastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 
-QDRANT_URL              = __import__("os").getenv("QDRANT_URL")
-QDRANT_API_KEY          = __import__("os").getenv("QDRANT_API_KEY")
-GROQ_API_KEY            = __import__("os").getenv("GROQ_API_KEY")
-COLLECTION_NAME         = "procedural_memory"
-DISTILL_MODEL           = "llama-3.1-8b-instant"   # fast + cheap for bulk distillation
-VECTOR_SIZE             = 1536                       # match your OpenRouter embedding model
-BATCH_SIZE              = 20                         # Qdrant upsert batch size
-CONCURRENT_LLM_CALLS   = 5                          # parallel Groq calls
+GROQ_API_KEY        = os.getenv("GROQ_API_KEY")
+QDRANT_URL          = os.getenv("QDRANT_URL")
+QDRANT_API_KEY      = os.getenv("QDRANT_API_KEY")
+COLLECTION_NAME     = "procedural_memory"
+DISTILL_MODEL       = "llama-3.1-8b-instant"   # fast + cheap for bulk distillation
+CONCURRENT_CALLS    = 5                          # parallel Groq calls
+BATCH_SIZE          = 20                         # Qdrant upsert batch size
 
 
 DISTILLATION_PROMPT = """
@@ -41,13 +45,13 @@ You are an IT support knowledge extractor.
 Given the following IT support conversation, extract ONLY:
 1. PROBLEM: What was broken or requested (one sentence, factual)
 2. ROOT_CAUSE: Why it happened (one sentence, or "Unknown" if not determined)
-3. RESOLUTION: Exactly what fixed it (one sentence, specific steps if available)
+3. RESOLUTION: Exactly what fixed it (specific steps if available, or "Unresolved")
 
 Rules:
 - Be factual and specific. No fluff.
 - Ignore tone, pleasantries, false starts, and escalation chatter.
 - Focus only on the technical content.
-- If the issue was NOT resolved, set RESOLUTION to "Unresolved".
+- If issue was NOT resolved, set RESOLUTION to "Unresolved".
 
 Respond with ONLY valid JSON, no markdown:
 {
@@ -63,177 +67,183 @@ CONVERSATION:
 @dataclass
 class DistilledRecord:
     """Extracted knowledge from one transcript."""
-    transcript_id: str
-    ticket_type_int: int
-    ticket_type_str: str
-    problem: str
-    root_cause: str
-    resolution: str
-    channel: str
-    was_escalated: bool
+    transcript_id:           str
+    ticket_type_int:         int
+    ticket_type_str:         str
+    problem:                 str
+    root_cause:              str
+    resolution:              str
+    channel:                 str
+    was_escalated:           bool
     resolution_time_minutes: int
-    satisfaction_score: int
-    timestamp: str
+    satisfaction_score:      int
+    timestamp:               str
 
 
-async def _call_groq(client: AsyncGroq, conversation_text: str) -> dict:
-    """
-    Send one conversation to Groq and extract structured knowledge.
-
-    Args:
-        client:            AsyncGroq client.
-        conversation_text: Plain-text conversation from transcript_reader.
-
-    Returns:
-        Dict with problem, root_cause, resolution keys.
-    """
-    response = await client.chat.completions.create(
-        model=DISTILL_MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": DISTILLATION_PROMPT + conversation_text,
-            }
-        ],
-        temperature=0.1,       # low temp for factual extraction
-        max_tokens=300,
-        response_format={"type": "json_object"},
-    )
-    raw = response.choices[0].message.content.strip()
-    return json.loads(raw)
-
-
-async def _distill_one(
-    groq_client: AsyncGroq,
+async def _call_groq(
+    client: AsyncGroq,
     transcript: ParsedTranscript,
     semaphore: asyncio.Semaphore,
 ) -> DistilledRecord | None:
     """
-    Distill a single transcript with concurrency control via semaphore.
+    Send one conversation to Groq and extract structured knowledge.
+    Semaphore limits concurrent calls to respect rate limits.
 
     Args:
-        groq_client: AsyncGroq client.
-        transcript:  ParsedTranscript from transcript_reader.
-        semaphore:   Limits concurrent Groq API calls.
+        client:     AsyncGroq client.
+        transcript: ParsedTranscript from reader.
+        semaphore:  Controls concurrency.
 
     Returns:
         DistilledRecord or None if extraction fails.
     """
     async with semaphore:
         try:
-            extracted = await _call_groq(groq_client, transcript.conversation_text)
+            response = await client.chat.completions.create(
+                model           = DISTILL_MODEL,
+                messages        = [{
+                    "role":    "user",
+                    "content": DISTILLATION_PROMPT + transcript.conversation_text,
+                }],
+                temperature     = 0.1,
+                max_tokens      = 300,
+                response_format = {"type": "json_object"},
+            )
+            raw      = response.choices[0].message.content.strip()
+            extracted = json.loads(raw)
+
             return DistilledRecord(
                 transcript_id           = transcript.transcript_id,
                 ticket_type_int         = transcript.ticket_type_int,
                 ticket_type_str         = transcript.ticket_type_str,
                 problem                 = extracted.get("problem", ""),
-                root_cause              = extracted.get("root_cause", ""),
-                resolution              = extracted.get("resolution", ""),
+                root_cause              = extracted.get("root_cause", "Unknown"),
+                resolution              = extracted.get("resolution", "Unresolved"),
                 channel                 = transcript.channel,
                 was_escalated           = transcript.was_escalated,
                 resolution_time_minutes = transcript.resolution_time_minutes,
                 satisfaction_score      = transcript.satisfaction_score,
                 timestamp               = transcript.timestamp,
             )
+
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "JSON parse error for {}: {}",
+                transcript.transcript_id, exc,
+            )
+            return None
         except Exception as exc:
-            logger.error("Distillation failed for {}: {}", transcript.transcript_id, exc)
+            logger.error(
+                "Groq call failed for {}: {}",
+                transcript.transcript_id, exc,
+            )
             return None
 
 
 async def _ensure_collection(qdrant: AsyncQdrantClient) -> None:
-    """Create Qdrant collection if it doesn't exist."""
-    collections = await qdrant.get_collections()
-    names = [c.name for c in collections.collections]
-    if COLLECTION_NAME not in names:
+    """Create procedural_memory collection if it doesn't exist."""
+    dimensions  = get_embedding_dimensions()
+    collections = {c.name for c in (await qdrant.get_collections()).collections}
+
+    if COLLECTION_NAME not in collections:
         await qdrant.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+            collection_name = COLLECTION_NAME,
+            vectors_config  = VectorParams(size=dimensions, distance=Distance.COSINE),
         )
         logger.info("Created Qdrant collection '{}'.", COLLECTION_NAME)
     else:
-        logger.info("Qdrant collection '{}' already exists.", COLLECTION_NAME)
+        logger.info("Collection '{}' already exists.", COLLECTION_NAME)
 
 
 async def _upsert_batch(
-    qdrant: AsyncQdrantClient,
-    records: list[DistilledRecord],
+    qdrant:   AsyncQdrantClient,
+    records:  list[DistilledRecord],
     start_id: int,
 ) -> None:
     """
     Embed and upsert a batch of distilled records into Qdrant.
 
     Args:
-        qdrant:   AsyncQdrantClient.
-        records:  List of DistilledRecord to upsert.
+        qdrant:   Qdrant async client.
+        records:  Batch of DistilledRecord to upsert.
         start_id: Starting integer ID for this batch.
     """
-    points = []
-    for i, record in enumerate(records):
-        # Embed the combined problem + resolution text
-        text_to_embed = f"{record.problem} {record.root_cause} {record.resolution}"
-        vector = await get_embedding(text_to_embed)
+    # Embed combined text for each record
+    texts   = [f"{r.problem} {r.root_cause} {r.resolution}" for r in records]
+    vectors = await get_embeddings_batch(texts)
 
-        points.append(PointStruct(
-            id      = start_id + i,
-            vector  = vector,
+    points = [
+        PointStruct(
+            id     = start_id + i,
+            vector = vectors[i],
             payload = {
-                "transcript_id":            record.transcript_id,
-                "ticket_type_int":          record.ticket_type_int,
-                "ticket_type_str":          record.ticket_type_str,
-                "problem":                  record.problem,
-                "root_cause":               record.root_cause,
-                "resolution":               record.resolution,
-                "channel":                  record.channel,
-                "was_escalated":            record.was_escalated,
-                "resolution_time_minutes":  record.resolution_time_minutes,
-                "satisfaction_score":       record.satisfaction_score,
-                "timestamp":                record.timestamp,
+                "transcript_id":           records[i].transcript_id,
+                "ticket_type_int":         records[i].ticket_type_int,
+                "ticket_type_str":         records[i].ticket_type_str,
+                "problem":                 records[i].problem,
+                "root_cause":              records[i].root_cause,
+                "resolution":             records[i].resolution,
+                "channel":                 records[i].channel,
+                "was_escalated":           records[i].was_escalated,
+                "resolution_time_minutes": records[i].resolution_time_minutes,
+                "satisfaction_score":      records[i].satisfaction_score,
+                "timestamp":               records[i].timestamp,
             },
-        ))
+        )
+        for i in range(len(records))
+    ]
 
     await qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
 
 async def run_distillation() -> dict:
     """
-    Main distillation pipeline. Reads all transcripts from Azure Blob,
-    distills with Groq, saves to Qdrant.
+    Main distillation pipeline.
+
+    1. Read all transcripts from Azure Blob via TranscriptReader
+    2. Distil each with Groq (concurrent, semaphore-limited)
+    3. Embed + upsert to Qdrant in batches
 
     Returns:
         Summary dict with counts.
     """
+    cfg         = get_config()
+    ingest_cfg  = cfg.get("ingest", {}).get("distillation", {})
+    concurrent  = ingest_cfg.get("concurrent_calls", CONCURRENT_CALLS)
+    batch_size  = ingest_cfg.get("batch_size", BATCH_SIZE)
+
     groq_client = AsyncGroq(api_key=GROQ_API_KEY)
-    qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     reader      = TranscriptReader()
-    semaphore   = asyncio.Semaphore(CONCURRENT_LLM_CALLS)
+    semaphore   = asyncio.Semaphore(concurrent)
 
     await _ensure_collection(qdrant)
 
-    # ── Load all transcripts (lazy iter converted to list for batching) ──
+    # ── Load all transcripts from Azure Blob ──────────────────────────
     logger.info("Reading transcripts from Azure Blob...")
     transcripts = list(reader.iter_all())
-    logger.info("Loaded {} transcripts. Starting distillation...", len(transcripts))
+    total       = len(transcripts)
+    logger.info("Loaded {} transcripts. Starting distillation...", total)
 
-    # ── Distill all concurrently (with semaphore) ─────────────────────
-    tasks = [
-        _distill_one(groq_client, t, semaphore)
-        for t in transcripts
-    ]
+    # ── Distil all concurrently ───────────────────────────────────────
+    tasks   = [_call_groq(groq_client, t, semaphore) for t in transcripts]
     results = await asyncio.gather(*tasks)
 
-    # Filter out failures
     distilled = [r for r in results if r is not None]
-    failed    = len(results) - len(distilled)
-    logger.info("Distilled: {} | Failed: {}", len(distilled), failed)
+    failed    = total - len(distilled)
+    logger.info("Distilled {} | Failed {}", len(distilled), failed)
 
     # ── Upsert to Qdrant in batches ───────────────────────────────────
-    for i in range(0, len(distilled), BATCH_SIZE):
-        batch = distilled[i : i + BATCH_SIZE]
+    for i in range(0, len(distilled), batch_size):
+        batch = distilled[i : i + batch_size]
         await _upsert_batch(qdrant, batch, start_id=i)
-        logger.info("Upserted batch {}/{}", min(i + BATCH_SIZE, len(distilled)), len(distilled))
+        logger.info(
+            "Upserted batch {}/{}",
+            min(i + batch_size, len(distilled)), len(distilled),
+        )
 
     summary = {
-        "total_transcripts": len(transcripts),
+        "total_transcripts": total,
         "distilled":         len(distilled),
         "failed":            failed,
         "collection":        COLLECTION_NAME,

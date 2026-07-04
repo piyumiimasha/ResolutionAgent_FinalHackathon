@@ -1,54 +1,52 @@
 """
-cag_populator.py — Identifies high-frequency Tier 1 questions from distilled
-records and seeds them into the CAG cache.
+cag_populator.py — Seeds the CAG cache from high-frequency Type 1 patterns.
 
-Logic:
-  - Scans all procedural memory records in Qdrant
-  - Groups by ticket_type_int == 1 (Access & Identity) — these are CAG candidates
-  - Uses Groq to cluster similar problems and generate a canonical FAQ answer
-  - Writes high-frequency clusters into the CAG cache (Qdrant cag_cache collection)
+Scans all procedural_memory records in Qdrant,
+groups Type 1 (Access & Identity) records by problem keyword clusters,
+generates a canonical FAQ answer for each high-frequency cluster via Groq,
+writes results to the cag_cache Qdrant collection.
 
 Run after distill_transcripts.py:
     python scripts/rebuild_cag_cache.py
 """
 
 import os
-import json
 import asyncio
-from collections import defaultdict
 
 from groq import AsyncGroq
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import PointStruct, VectorParams, Distance, Filter, FieldCondition, MatchValue
+from qdrant_client.models import (
+    PointStruct, VectorParams, Distance,
+    Filter, FieldCondition, MatchValue,
+)
 from loguru import logger
 from dotenv import load_dotenv
 
 from infastructure.llm.embeddings import get_embedding
+from infastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 
-QDRANT_URL          = os.getenv("QDRANT_URL")
-QDRANT_API_KEY      = os.getenv("QDRANT_API_KEY")
-GROQ_API_KEY        = os.getenv("GROQ_API_KEY")
-SOURCE_COLLECTION   = "procedural_memory"
-CAG_COLLECTION      = "cag_cache"
-GROQ_MODEL          = "llama-3.1-8b-instant"
-VECTOR_SIZE         = 1536
-MIN_FREQUENCY       = int(os.getenv("CAG_MIN_FREQUENCY", "5"))   # min occurrences to cache
-SCROLL_LIMIT        = 100   # records per scroll page
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY")
+QDRANT_URL        = os.getenv("QDRANT_URL")
+QDRANT_API_KEY    = os.getenv("QDRANT_API_KEY")
+SOURCE_COLLECTION = "procedural_memory"
+CAG_COLLECTION    = "cag_cache"
+GROQ_MODEL        = "llama-3.1-8b-instant"
+SCROLL_LIMIT      = 100
 
 
 CAG_ANSWER_PROMPT = """
 You are an IT support FAQ generator.
 
 Below are {count} similar IT support problems that all had the same type of resolution.
-Generate a clear, concise, step-by-step answer that covers this category of issue.
+Generate a clear, step-by-step answer that covers this category of issue.
 
-The answer should be:
+Requirements:
 - Written for a non-technical employee
 - Under 150 words
 - Include specific steps where possible
-- Professional in tone
+- Professional tone
 
 PROBLEMS AND RESOLUTIONS:
 {examples}
@@ -56,13 +54,23 @@ PROBLEMS AND RESOLUTIONS:
 Respond with ONLY the answer text. No preamble, no JSON.
 """
 
+# Keyword clusters for Type 1 (Access & Identity) tickets
+KEYWORD_MAP = {
+    "vpn":            ["vpn", "tunnel", "remote access", "openvpn", "wireguard"],
+    "password_reset": ["password", "passwd", "credentials", "reset password"],
+    "mfa_totp":       ["mfa", "totp", "authenticator", "2fa", "otp", "token", "qr code", "clock drift"],
+    "account_locked": ["locked", "lock out", "lockout", "account locked", "blocked", "3 attempts"],
+    "sso":            ["sso", "single sign", "saml", "okta", "azure ad"],
+    "permissions":    ["permission", "access denied", "403", "unauthorized", "role"],
+}
 
-async def _scroll_tier1_records(qdrant: AsyncQdrantClient) -> list[dict]:
+
+async def _scroll_type1_records(qdrant: AsyncQdrantClient) -> list[dict]:
     """
-    Scroll through all Type 1 (Access & Identity) records in procedural_memory.
+    Scroll all Type 1 records from procedural_memory.
 
     Returns:
-        List of payload dicts for all Type 1 records.
+        List of payload dicts.
     """
     records = []
     offset  = None
@@ -76,56 +84,37 @@ async def _scroll_tier1_records(qdrant: AsyncQdrantClient) -> list[dict]:
                     match = MatchValue(value=1),
                 )]
             ),
-            limit           = SCROLL_LIMIT,
-            offset          = offset,
-            with_payload    = True,
-            with_vectors    = False,
+            limit        = SCROLL_LIMIT,
+            offset       = offset,
+            with_payload = True,
+            with_vectors = False,
         )
-
         records.extend([r.payload for r in results])
         if next_offset is None:
             break
         offset = next_offset
 
-    logger.info("Scrolled {} Type 1 records from procedural memory.", len(records))
+    logger.info("Scrolled {} Type 1 records from procedural_memory.", len(records))
     return records
 
 
-def _cluster_by_keywords(records: list[dict]) -> dict[str, list[dict]]:
+def _cluster_records(records: list[dict]) -> dict[str, list[dict]]:
     """
-    Simple keyword-based clustering to group similar problems.
-    Groups by key terms found in the problem field.
+    Group records into clusters by keyword matching on problem field.
 
     Args:
-        records: List of payload dicts from Qdrant.
+        records: List of Qdrant payload dicts.
 
     Returns:
-        Dict mapping cluster label → list of records.
+        Dict mapping cluster_label → list of matching records.
     """
-    # Keyword clusters for Access & Identity type tickets
-    clusters = {
-        "vpn":              [],
-        "password_reset":   [],
-        "mfa_totp":         [],
-        "account_locked":   [],
-        "sso":              [],
-        "permissions":      [],
-        "other_access":     [],
-    }
-
-    keyword_map = {
-        "vpn":            ["vpn", "tunnel", "remote access", "openvpn", "wireguard"],
-        "password_reset": ["password", "passwd", "credentials", "reset password"],
-        "mfa_totp":       ["mfa", "totp", "authenticator", "2fa", "otp", "token", "qr code"],
-        "account_locked": ["locked", "lock out", "lockout", "account locked", "blocked"],
-        "sso":            ["sso", "single sign", "saml", "okta", "azure ad"],
-        "permissions":    ["permission", "access denied", "403", "unauthorized", "role"],
-    }
+    clusters: dict[str, list[dict]] = {k: [] for k in KEYWORD_MAP}
+    clusters["other_access"] = []
 
     for record in records:
         problem_lower = record.get("problem", "").lower()
         matched = False
-        for cluster, keywords in keyword_map.items():
+        for cluster, keywords in KEYWORD_MAP.items():
             if any(kw in problem_lower for kw in keywords):
                 clusters[cluster].append(record)
                 matched = True
@@ -137,33 +126,35 @@ def _cluster_by_keywords(records: list[dict]) -> dict[str, list[dict]]:
     return {k: v for k, v in clusters.items() if v}
 
 
-async def _generate_cag_answer(
-    groq_client: AsyncGroq,
+async def _generate_answer(
+    client: AsyncGroq,
     cluster_label: str,
     records: list[dict],
 ) -> str:
     """
-    Generate a canonical FAQ answer for a cluster using Groq.
+    Generate a canonical FAQ answer for a cluster via Groq.
 
     Args:
-        groq_client:   AsyncGroq client.
-        cluster_label: Name of the cluster (e.g. "vpn").
-        records:       List of similar records from procedural memory.
+        client:        AsyncGroq client.
+        cluster_label: Cluster name for logging.
+        records:       Matching records (up to 5 used as examples).
 
     Returns:
         Generated answer string.
     """
-    # Take up to 5 examples to keep prompt short
     examples = "\n\n".join([
         f"Problem: {r.get('problem', '')}\nResolution: {r.get('resolution', '')}"
         for r in records[:5]
     ])
 
-    response = await groq_client.chat.completions.create(
-        model   = GROQ_MODEL,
-        messages= [{
-            "role": "user",
-            "content": CAG_ANSWER_PROMPT.format(count=len(records), examples=examples),
+    response = await client.chat.completions.create(
+        model       = GROQ_MODEL,
+        messages    = [{
+            "role":    "user",
+            "content": CAG_ANSWER_PROMPT.format(
+                count    = len(records),
+                examples = examples,
+            ),
         }],
         temperature = 0.3,
         max_tokens  = 200,
@@ -172,13 +163,14 @@ async def _generate_cag_answer(
 
 
 async def _ensure_cag_collection(qdrant: AsyncQdrantClient) -> None:
-    """Create CAG cache collection if it doesn't exist."""
-    collections = await qdrant.get_collections()
-    names = [c.name for c in collections.collections]
-    if CAG_COLLECTION not in names:
+    """Create cag_cache collection if it doesn't exist."""
+    dimensions  = get_embedding_dimensions()
+    collections = {c.name for c in (await qdrant.get_collections()).collections}
+
+    if CAG_COLLECTION not in collections:
         await qdrant.create_collection(
             collection_name = CAG_COLLECTION,
-            vectors_config  = VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+            vectors_config  = VectorParams(size=dimensions, distance=Distance.COSINE),
         )
         logger.info("Created Qdrant collection '{}'.", CAG_COLLECTION)
 
@@ -188,23 +180,29 @@ async def run_cag_population() -> dict:
     Main CAG population pipeline.
 
     1. Scroll Type 1 records from procedural_memory
-    2. Cluster by problem keywords
-    3. For clusters with >= MIN_FREQUENCY records, generate an FAQ answer
-    4. Embed the cluster label and upsert into cag_cache
+    2. Cluster by keyword
+    3. For clusters >= MIN_FREQUENCY, generate FAQ answer via Groq
+    4. Embed cluster label + upsert to cag_cache
 
     Returns:
         Summary dict.
     """
+    cfg         = get_config()
+    min_freq    = cfg.get("cag", {}).get("min_frequency", 5)
+
     groq_client = AsyncGroq(api_key=GROQ_API_KEY)
-    qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
 
     await _ensure_cag_collection(qdrant)
 
     # ── 1. Get all Type 1 records ─────────────────────────────────────
-    records  = await _scroll_tier1_records(qdrant)
-    clusters = _cluster_by_keywords(records)
+    records  = await _scroll_type1_records(qdrant)
+    clusters = _cluster_records(records)
 
-    logger.info("Clusters found: {}", {k: len(v) for k, v in clusters.items()})
+    logger.info(
+        "Clusters: {}",
+        {k: len(v) for k, v in clusters.items()},
+    )
 
     # ── 2. Process each cluster ───────────────────────────────────────
     points  = []
@@ -212,32 +210,35 @@ async def run_cag_population() -> dict:
     skipped = 0
 
     for point_id, (label, cluster_records) in enumerate(clusters.items()):
-        if len(cluster_records) < MIN_FREQUENCY:
+        if len(cluster_records) < min_freq:
             logger.info(
-                "Skipping cluster '{}' — only {} records (min: {})",
-                label, len(cluster_records), MIN_FREQUENCY,
+                "Skipping '{}' — {} records < min_frequency {}",
+                label, len(cluster_records), min_freq,
             )
             skipped += 1
             continue
 
         logger.info(
-            "Generating CAG answer for cluster '{}' ({} records)...",
+            "Generating CAG answer for '{}' ({} records)...",
             label, len(cluster_records),
         )
 
-        answer  = await _generate_cag_answer(groq_client, label, cluster_records)
-        vector  = await get_embedding(f"{label} {cluster_records[0].get('problem', '')}")
+        answer = await _generate_answer(groq_client, label, cluster_records)
+
+        # Embed using the cluster label + first example problem
+        embed_text = f"{label} {cluster_records[0].get('problem', '')}"
+        vector     = await get_embedding(embed_text)
 
         points.append(PointStruct(
             id      = point_id,
             vector  = vector,
             payload = {
-                "cluster_label":    label,
-                "answer":           answer,
-                "frequency":        len(cluster_records),
-                "ticket_type_int":  1,
-                "ticket_type_str":  "access_identity",
-                "source":           "cag_populator",
+                "cluster_label":   label,
+                "answer":          answer,
+                "frequency":       len(cluster_records),
+                "ticket_type_int": 1,
+                "ticket_type_str": "access_identity",
+                "source":          "cag_populator",
             },
         ))
         seeded += 1
@@ -245,13 +246,14 @@ async def run_cag_population() -> dict:
     # ── 3. Upsert to Qdrant ───────────────────────────────────────────
     if points:
         await qdrant.upsert(collection_name=CAG_COLLECTION, points=points)
+        logger.info("Upserted {} CAG entries to '{}'.", len(points), CAG_COLLECTION)
 
     summary = {
         "total_type1_records": len(records),
         "clusters_found":      len(clusters),
         "clusters_seeded":     seeded,
         "clusters_skipped":    skipped,
-        "min_frequency":       MIN_FREQUENCY,
+        "min_frequency":       min_freq,
     }
     logger.info("CAG population complete: {}", summary)
     return summary
