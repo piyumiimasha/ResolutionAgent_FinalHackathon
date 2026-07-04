@@ -9,11 +9,14 @@ Usage:
 
 Run AFTER upload_to_azure.py and BEFORE rebuild_cag_cache.py.
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import asyncio
 import sys
 from loguru import logger
-from src.services.ingest_service.distiller import run_distillation
+from services.ingest_service.distiller import run_distillation
 
 
 async def main():

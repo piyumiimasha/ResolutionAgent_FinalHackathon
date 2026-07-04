@@ -13,6 +13,9 @@ Usage:
     vector = await get_embedding("Redis OOM on prod-cache-01")
     # returns list[float] of length 1536
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import os
 import asyncio

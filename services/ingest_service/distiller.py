@@ -35,8 +35,10 @@ QDRANT_URL          = os.getenv("QDRANT_URL")
 QDRANT_API_KEY      = os.getenv("QDRANT_API_KEY")
 COLLECTION_NAME     = "procedural_memory"
 DISTILL_MODEL       = "llama-3.1-8b-instant"   # fast + cheap for bulk distillation
-CONCURRENT_CALLS    = 5                          # parallel Groq calls
-BATCH_SIZE          = 20                         # Qdrant upsert batch size
+CONCURRENT_CALLS    = 1                          # keep pressure low on Groq
+BATCH_SIZE          = 10                         # smaller Qdrant upsert batches
+GROQ_MAX_RETRIES    = 5
+GROQ_BASE_DELAY     = 2.0
 
 
 DISTILLATION_PROMPT = """
@@ -98,46 +100,59 @@ async def _call_groq(
         DistilledRecord or None if extraction fails.
     """
     async with semaphore:
-        try:
-            response = await client.chat.completions.create(
-                model           = DISTILL_MODEL,
-                messages        = [{
-                    "role":    "user",
-                    "content": DISTILLATION_PROMPT + transcript.conversation_text,
-                }],
-                temperature     = 0.1,
-                max_tokens      = 300,
-                response_format = {"type": "json_object"},
-            )
-            raw      = response.choices[0].message.content.strip()
-            extracted = json.loads(raw)
+        for attempt in range(1, GROQ_MAX_RETRIES + 1):
+            try:
+                response = await client.chat.completions.create(
+                    model           = DISTILL_MODEL,
+                    messages        = [{
+                        "role":    "user",
+                        "content": DISTILLATION_PROMPT + transcript.conversation_text,
+                    }],
+                    temperature     = 0.1,
+                    max_tokens      = 300,
+                    response_format = {"type": "json_object"},
+                )
+                raw       = response.choices[0].message.content.strip()
+                extracted = json.loads(raw)
 
-            return DistilledRecord(
-                transcript_id           = transcript.transcript_id,
-                ticket_type_int         = transcript.ticket_type_int,
-                ticket_type_str         = transcript.ticket_type_str,
-                problem                 = extracted.get("problem", ""),
-                root_cause              = extracted.get("root_cause", "Unknown"),
-                resolution              = extracted.get("resolution", "Unresolved"),
-                channel                 = transcript.channel,
-                was_escalated           = transcript.was_escalated,
-                resolution_time_minutes = transcript.resolution_time_minutes,
-                satisfaction_score      = transcript.satisfaction_score,
-                timestamp               = transcript.timestamp,
-            )
+                return DistilledRecord(
+                    transcript_id           = transcript.transcript_id,
+                    ticket_type_int         = transcript.ticket_type_int,
+                    ticket_type_str         = transcript.ticket_type_str,
+                    problem                 = extracted.get("problem", ""),
+                    root_cause              = extracted.get("root_cause", "Unknown"),
+                    resolution              = extracted.get("resolution", "Unresolved"),
+                    channel                 = transcript.channel,
+                    was_escalated           = transcript.was_escalated,
+                    resolution_time_minutes = transcript.resolution_time_minutes,
+                    satisfaction_score      = transcript.satisfaction_score,
+                    timestamp               = transcript.timestamp,
+                )
 
-        except json.JSONDecodeError as exc:
-            logger.error(
-                "JSON parse error for {}: {}",
-                transcript.transcript_id, exc,
-            )
-            return None
-        except Exception as exc:
-            logger.error(
-                "Groq call failed for {}: {}",
-                transcript.transcript_id, exc,
-            )
-            return None
+            except json.JSONDecodeError as exc:
+                logger.error(
+                    "JSON parse error for {}: {}",
+                    transcript.transcript_id, exc,
+                )
+                return None
+            except Exception as exc:
+                message = str(exc)
+                is_rate_limit = "429" in message or "rate limit" in message.lower()
+
+                if is_rate_limit and attempt < GROQ_MAX_RETRIES:
+                    delay = GROQ_BASE_DELAY * attempt
+                    logger.warning(
+                        "Groq rate limit for {} on attempt {}/{}. Sleeping {}s then retrying.",
+                        transcript.transcript_id, attempt, GROQ_MAX_RETRIES, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                logger.error(
+                    "Groq call failed for {} after {} attempt(s): {}",
+                    transcript.transcript_id, attempt, exc,
+                )
+                return None
 
 
 async def _ensure_collection(qdrant: AsyncQdrantClient) -> None:
@@ -216,8 +231,13 @@ async def run_distillation() -> dict:
     qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     reader      = TranscriptReader()
     semaphore   = asyncio.Semaphore(concurrent)
+    qdrant_ready = True
 
-    await _ensure_collection(qdrant)
+    try:
+        await _ensure_collection(qdrant)
+    except Exception as exc:
+        qdrant_ready = False
+        logger.error("Qdrant setup failed, continuing without upserts: {}", exc)
 
     # ── Load all transcripts from Azure Blob ──────────────────────────
     logger.info("Reading transcripts from Azure Blob...")
@@ -234,19 +254,31 @@ async def run_distillation() -> dict:
     logger.info("Distilled {} | Failed {}", len(distilled), failed)
 
     # ── Upsert to Qdrant in batches ───────────────────────────────────
-    for i in range(0, len(distilled), batch_size):
-        batch = distilled[i : i + batch_size]
-        await _upsert_batch(qdrant, batch, start_id=i)
-        logger.info(
-            "Upserted batch {}/{}",
-            min(i + batch_size, len(distilled)), len(distilled),
-        )
+    if qdrant_ready:
+        for i in range(0, len(distilled), batch_size):
+            batch = distilled[i : i + batch_size]
+            try:
+                await _upsert_batch(qdrant, batch, start_id=i)
+                logger.info(
+                    "Upserted batch {}/{}",
+                    min(i + batch_size, len(distilled)), len(distilled),
+                )
+            except Exception as exc:
+                qdrant_ready = False
+                logger.error(
+                    "Qdrant upsert failed at batch starting {}: {}",
+                    i, exc,
+                )
+                break
+    else:
+        logger.warning("Skipping Qdrant upserts because the collection was not ready.")
 
     summary = {
         "total_transcripts": total,
         "distilled":         len(distilled),
         "failed":            failed,
         "collection":        COLLECTION_NAME,
+        "saved_to_qdrant":   qdrant_ready,
     }
     logger.info("Distillation complete: {}", summary)
     return summary
