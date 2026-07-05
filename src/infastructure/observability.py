@@ -19,11 +19,11 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 from langfuse import Langfuse
-from langfuse.callback import CallbackHandler
+from langfuse.langchain import CallbackHandler
 from loguru import logger
 from dotenv import load_dotenv
 
-from config import get_config
+from infastructure.config import get_config
 
 load_dotenv()
 

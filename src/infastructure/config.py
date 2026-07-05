@@ -25,7 +25,7 @@ from loguru import logger
 load_dotenv()
 
 # Resolve config directory relative to project root
-_PROJECT_ROOT = Path(__file__).parent.parent   # infastructure/config.py → repo root
+_PROJECT_ROOT = Path(__file__).parent.parent.parent   # infastructure/config.py → repo root
 _CONFIG_DIR   = _PROJECT_ROOT / "config"
 
 

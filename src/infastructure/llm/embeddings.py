@@ -27,7 +27,7 @@ from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from dotenv import load_dotenv
 
-from config import get_config, get_models, get_embedding_model, get_embedding_dimensions
+from infastructure.config import get_config, get_models, get_embedding_model, get_embedding_dimensions
 
 load_dotenv()
 

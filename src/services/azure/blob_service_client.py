@@ -360,6 +360,7 @@ def blob_exists(blob_name: str, container_name: str | None = None) -> bool:
         return False
 
 
+# FIXED
 async def check_connection() -> bool:
     """
     Health check — verifies Azure Blob is reachable.
@@ -369,7 +370,9 @@ async def check_connection() -> bool:
     """
     try:
         service = get_blob_service()
-        list(service.list_containers(max_results=1))
+        # max_results removed — not supported in azure-storage-blob >= 12.x
+        # consume just one item to trigger the actual network call
+        next(iter(service.list_containers()), None)
         logger.debug("Azure Blob connection OK")
         return True
     except ServiceRequestError as exc:

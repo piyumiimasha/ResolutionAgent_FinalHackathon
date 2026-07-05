@@ -9,10 +9,13 @@ Features:
   - JSON-structured output in production (for log aggregators)
   - Intercepts standard library logging (so supabase, httpx etc. all go through loguru)
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import sys
 import logging
-from config import get_config
+from infastructure.config import get_config
 
 
 class _InterceptHandler(logging.Handler):
