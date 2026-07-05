@@ -5,19 +5,6 @@ Storage : Qdrant collection `procedural_memory`
 Purpose : SOPs distilled from the 1050 historical transcripts.
           Written once during ingest pipeline. Read by L2 during live investigations.
 Lifetime: Permanent. Rebuilt by running distill_transcripts.py.
-
-Called by:
-  - ingest_service/distiller.py   → (writes) stores distilled SOPs after pipeline
-  - memory_ops.Recaller           → search_similar() before L2 investigates
-  - l2_investigator.py            → search_similar() directly
-
-Qdrant collection: procedural_memory
-  vector: 1536-dim embedding of "problem + root_cause + resolution"
-  payload fields:
-    transcript_id, ticket_type_int, ticket_type_str,
-    problem, root_cause, resolution,
-    channel, was_escalated, resolution_time_minutes,
-    satisfaction_score, timestamp
 """
 
 import os
@@ -39,16 +26,25 @@ def _get_qdrant() -> AsyncQdrantClient:
     return AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
 
+def _extract_points(raw) -> list:
+    """
+    Safely extract a list of ScoredPoint from whatever query_points returns.
+    Handles:
+      - QueryResponse object with .points  (qdrant-client >= 1.9)
+      - tuple (points_list, next_offset)   (some intermediate versions)
+      - plain list                         (older versions)
+    """
+    if isinstance(raw, tuple):
+        return list(raw[0])
+    if hasattr(raw, "points"):
+        return list(raw.points)
+    return list(raw)
+
+
 class ProceduralStore:
     """
     Procedural Memory — historical SOPs from 1050 distilled transcripts.
-
-    Read-only during live app operation.
-    Written only by ingest pipeline (distiller.py).
-
-    Usage:
-        store = ProceduralStore()
-        sops = await store.search_similar("Redis OOM on prod-cache-01", ticket_type=4)
+    Read-only during live app. Written only by ingest pipeline.
     """
 
     def __init__(self):
@@ -63,20 +59,10 @@ class ProceduralStore:
     ) -> list[dict]:
         """
         Semantic search for similar past incidents in procedural memory.
-
-        Args:
-            problem:         The current incident description.
-            ticket_type:     Ticket type int (1-4) to narrow the search.
-            top_k:           Number of results to return (default 3).
-            filter_by_type:  If True, only search within the same ticket type.
-
-        Returns:
-            List of payload dicts with problem, root_cause, resolution fields.
         """
         try:
             embedding = await get_embedding(problem)
 
-            # Optionally filter by ticket type for more relevant results
             search_filter = None
             if filter_by_type:
                 search_filter = Filter(
@@ -86,16 +72,16 @@ class ProceduralStore:
                     )]
                 )
 
-            results = await self._qdrant.query_points(
+            raw    = await self._qdrant.query_points(
                 collection_name = COLLECTION_NAME,
                 query           = embedding,
                 query_filter    = search_filter,
                 limit           = top_k,
                 with_payload    = True,
             )
+            points = _extract_points(raw)
 
-            if not results:
-                # Fallback: search without type filter if no results found
+            if not points:
                 if filter_by_type:
                     logger.debug(
                         "No type-filtered results for ticket_type={}, retrying without filter",
@@ -118,7 +104,7 @@ class ProceduralStore:
                     "satisfaction_score":      r.payload.get("satisfaction_score"),
                     "similarity_score":        round(r.score, 3),
                 }
-                for r in results
+                for r in points
             ]
 
         except Exception as exc:
@@ -126,10 +112,6 @@ class ProceduralStore:
             return []
 
     async def count(self) -> int:
-        """
-        Return total number of SOPs in the collection.
-        Useful for verifying the ingest pipeline ran successfully.
-        """
         try:
             info = await self._qdrant.get_collection(COLLECTION_NAME)
             return info.points_count or 0
@@ -142,26 +124,16 @@ class ProceduralStore:
         resolution_keyword: str,
         top_k: int = 5,
     ) -> list[dict]:
-        """
-        Search procedural memory by a keyword in the resolution field.
-        Useful for CAG population — find all records resolved by a specific action.
-
-        Args:
-            resolution_keyword: e.g. "maxmemory", "credential reset", "restart"
-            top_k:              Max results.
-
-        Returns:
-            List of matching SOP dicts.
-        """
         try:
             embedding = await get_embedding(resolution_keyword)
-            results   = await self._qdrant.query_points(
+            raw       = await self._qdrant.query_points(
                 collection_name = COLLECTION_NAME,
                 query           = embedding,
                 limit           = top_k,
                 with_payload    = True,
             )
-            return [r.payload for r in results]
+            points = _extract_points(raw)
+            return [r.payload for r in points]
         except Exception as exc:
             logger.error("ProceduralStore.search_by_resolution_pattern failed: {}", exc)
             return []
