@@ -11,6 +11,9 @@ Startup sequence:
 Shutdown:
   1. flush_traces() — flush pending Langfuse events
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from contextlib import asynccontextmanager
 
@@ -18,11 +21,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from infastructure.log import configure_logging
-from infastructure.config import get_config
-from infastructure.observability import get_tracer, flush_traces
-from infastructure.db.supabase_client import check_connection as supabase_health
-from infastructure.db.qdrant_client import check_connection as qdrant_health, ensure_collections
+from src.infastructure.log import configure_logging
+from src.infastructure.config import get_config
+from src.infastructure.observability import get_tracer, flush_traces
+from src.infastructure.db.supabase_client import check_connection as supabase_health
+from src.infastructure.db.qdrant_client import check_connection as qdrant_health, ensure_collections
 from src.services.azure.blob_service_client  import check_connection as azure_health
 from api.routers import chat, tickets, health
 

@@ -8,7 +8,7 @@ Usage:
 """
 
 import uvicorn
-from infastructure.config import get_config
+from src.infastructure.config import get_config
 
 
 def main():

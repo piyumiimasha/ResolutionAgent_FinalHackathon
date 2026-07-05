@@ -9,8 +9,8 @@ from fastapi import APIRouter
 from loguru import logger
 
 from api.schemas import HealthResponse, ServiceStatus
-from infastructure.db.supabase_client import check_connection as supabase_health
-from infastructure.db.qdrant_client import check_connection as qdrant_health
+from src.infastructure.db.supabase_client import check_connection as supabase_health
+from src.infastructure.db.qdrant_client import check_connection as qdrant_health
 from src.services.azure.blob_service_client import check_connection as azure_health
 
 router = APIRouter()
