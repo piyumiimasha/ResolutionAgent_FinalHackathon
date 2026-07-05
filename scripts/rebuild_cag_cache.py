@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import asyncio
 import sys
 from loguru import logger
-from services.ingest_service.cag_populator import run_cag_population
+from src.services.ingest_service.cag_populator import run_cag_population
 
 
 async def main():

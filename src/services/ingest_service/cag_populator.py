@@ -24,8 +24,8 @@ from qdrant_client.models import (
 from loguru import logger
 from dotenv import load_dotenv
 
-from infastructure.llm.embeddings import get_embedding
-from infastructure.config import get_config, get_embedding_dimensions
+from src.infastructure.llm.embeddings import get_embedding
+from src.infastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 
