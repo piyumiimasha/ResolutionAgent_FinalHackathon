@@ -20,7 +20,7 @@ from agents.state import AgentState
 from agents.guardrail import guardrail_node
 from agents.router import router_node
 from agents.orchastrator import run_swarm
-from infrastructure.observability import get_tracer
+from infastructure.observability import get_tracer
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()
