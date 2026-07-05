@@ -10,6 +10,9 @@ Run once before starting the app (after schema.sql and distill_transcripts):
 
 Can be re-run anytime when runbooks are updated.
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import os
 import re

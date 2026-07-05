@@ -18,7 +18,9 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     PointStruct, VectorParams, Distance,
     Filter, FieldCondition, MatchValue,
+    PayloadSchemaType,  
 )
+
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -174,6 +176,20 @@ async def _ensure_cag_collection(qdrant: AsyncQdrantClient) -> None:
         )
         logger.info("Created Qdrant collection '{}'.", CAG_COLLECTION)
 
+async def _ensure_procedural_index(qdrant: AsyncQdrantClient) -> None:
+    """Create payload index on ticket_type_int in procedural_memory if missing."""
+    try:
+        await qdrant.create_payload_index(
+            collection_name = SOURCE_COLLECTION,
+            field_name      = "ticket_type_int",
+            field_schema    = PayloadSchemaType.INTEGER,
+        )
+        logger.info("Payload index on 'ticket_type_int' ready.")
+    except Exception as exc:
+        if "already exists" in str(exc).lower():
+            logger.debug("Index already exists, skipping.")
+        else:
+            raise
 
 async def run_cag_population() -> dict:
     """
@@ -194,6 +210,7 @@ async def run_cag_population() -> dict:
     qdrant      = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
 
     await _ensure_cag_collection(qdrant)
+    await _ensure_procedural_index(qdrant)
 
     # ── 1. Get all Type 1 records ─────────────────────────────────────
     records  = await _scroll_type1_records(qdrant)
