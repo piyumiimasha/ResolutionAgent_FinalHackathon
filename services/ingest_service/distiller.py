@@ -343,60 +343,184 @@ async def run_embeddings_from_dir(out_dir: str = "data/distilled_groq") -> dict:
     Stage 2 — Read JSONL from disk, embed, upsert to Qdrant.
 
     Reads data/distilled_groq/groq_extractions.jsonl produced by Stage 1.
-    Can be re-run safely — Qdrant upsert is idempotent.
+    Checkpoints progress after every successful batch so that if OpenRouter
+    credits run out mid-run, re-running this function automatically resumes
+    from the last completed batch rather than restarting from scratch.
+
+    Checkpoint file:
+        data/distilled_groq/stage2_progress.json
+        → {"last_completed_batch": 12, "saved_so_far": 130}
+
+    Safe to re-run at any time — Qdrant upsert is idempotent, and already-
+    completed batches are skipped without making any embedding API calls.
 
     Args:
-        out_dir: Directory containing groq_extractions.jsonl.
+        out_dir: Directory containing groq_extractions.jsonl (Stage 1 output).
 
     Returns:
-        Summary dict.
+        Summary dict with keys: total, saved, skipped_batches, collection.
+        On failure: adds keys error, failed_batch, resume_from_batch.
     """
     cfg        = get_config()
     batch_size = cfg.get("ingest", {}).get("distillation", {}).get("batch_size", BATCH_SIZE)
 
-    qdrant     = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
+    qdrant = AsyncQdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY or None)
     await _ensure_collection(qdrant)
 
-    input_file = Path(out_dir) / "groq_extractions.jsonl"
+    out_path      = Path(out_dir)
+    input_file    = out_path / "groq_extractions.jsonl"
+    progress_file = out_path / "stage2_progress.json"
+
+    # ── Guard: Stage 1 output must exist ─────────────────────────────
     if not input_file.exists():
-        logger.error("Stage 2 input not found: {}", input_file)
+        logger.error("Stage 2 input not found: {}. Run Stage 1 first.", input_file)
         return {"error": "input_not_found", "path": str(input_file)}
+
+    # ── Load resume checkpoint ────────────────────────────────────────
+    # last_completed_batch is the index of the last batch that was fully
+    # embedded AND upserted. On re-run we skip every batch <= this index
+    # without making any embedding API calls.
+    start_batch_index = 0
+    saved_so_far      = 0
+
+    if progress_file.exists():
+        try:
+            progress          = json.loads(progress_file.read_text(encoding="utf-8"))
+            last_done         = progress.get("last_completed_batch", -1)
+            saved_so_far      = progress.get("saved_so_far", 0)
+            start_batch_index = last_done + 1
+            logger.info(
+                "Resume mode: last completed batch = {} | saved so far = {} | "
+                "starting from batch {}",
+                last_done, saved_so_far, start_batch_index,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Could not read progress file ({}), starting from batch 0.", exc
+            )
+            start_batch_index = 0
+            saved_so_far      = 0
+    else:
+        logger.info("No checkpoint found — starting Stage 2 from the beginning.")
 
     # ── Load all records from JSONL ───────────────────────────────────
     records: list[DistilledRecord] = []
     with input_file.open("r", encoding="utf-8") as fh:
-        for line in fh:
+        for line_num, line in enumerate(fh, start=1):
             line = line.strip()
             if not line:
                 continue
             try:
                 records.append(DistilledRecord.from_dict(json.loads(line)))
             except Exception as exc:
-                logger.warning("Skipping malformed JSONL line: {}", exc)
+                logger.warning("Skipping malformed JSONL line {}: {}", line_num, exc)
 
-    total = len(records)
-    logger.info("Stage 2: {} records loaded. Embedding + upserting to Qdrant...", total)
+    total       = len(records)
+    total_batches = (total + batch_size - 1) // batch_size  # ceiling division
+    logger.info(
+        "Stage 2: {} records loaded | batch size = {} | total batches = {} | "
+        "skipping first {} batches (already done)",
+        total, batch_size, total_batches, start_batch_index,
+    )
 
-    saved = 0
-    for i in range(0, total, batch_size):
-        batch = records[i : i + batch_size]
+    if start_batch_index >= total_batches:
+        logger.info("All batches already completed. Nothing to do.")
+        return {
+            "total":           total,
+            "saved":           saved_so_far,
+            "skipped_batches": total_batches,
+            "collection":      COLLECTION_NAME,
+            "already_complete": True,
+        }
+
+    skipped_batches = start_batch_index
+
+    # ── Main loop: embed + upsert each batch ─────────────────────────
+    for batch_index in range(total_batches):
+        batch_start = batch_index * batch_size
+        batch       = records[batch_start : batch_start + batch_size]
+
+        # Skip batches already completed in a prior run
+        if batch_index < start_batch_index:
+            logger.debug("Skipping batch {} (already done).", batch_index)
+            continue
+
+        logger.info(
+            "Processing batch {}/{} (records {}-{})...",
+            batch_index + 1,
+            total_batches,
+            batch_start,
+            min(batch_start + batch_size, total) - 1,
+        )
+
         try:
-            await _upsert_batch(qdrant, batch, start_id=i)
-            saved += len(batch)
-            logger.info(
-                "Upserted {}/{} records",
-                min(i + batch_size, total), total,
+            await _upsert_batch(qdrant, batch, start_id=batch_start)
+            saved_so_far += len(batch)
+
+            # ── Write checkpoint immediately after every successful batch ─
+            # If credits run out on the NEXT batch, this batch is safe.
+            progress_file.write_text(
+                json.dumps(
+                    {
+                        "last_completed_batch": batch_index,
+                        "saved_so_far":         saved_so_far,
+                        "total_batches":        total_batches,
+                        "total_records":        total,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
             )
+
+            logger.info(
+                "Batch {}/{} done — {} / {} records saved to Qdrant.",
+                batch_index + 1, total_batches, saved_so_far, total,
+            )
+
         except Exception as exc:
-            logger.error("Qdrant upsert failed at batch {}: {}", i, exc)
+            err_msg = str(exc)
+            is_credits = (
+                "credit" in err_msg.lower()
+                or "insufficient" in err_msg.lower()
+                or "402" in err_msg
+                or "429" in err_msg
+            )
+
+            if is_credits:
+                logger.error(
+                    "OpenRouter credits exhausted at batch {}/{}. "
+                    "{} records saved so far. "
+                    "Top up credits and re-run — will resume from batch {}.",
+                    batch_index + 1, total_batches, saved_so_far, batch_index,
+                )
+            else:
+                logger.error(
+                    "Unexpected error at batch {}/{}: {}. "
+                    "Re-run to resume from batch {}.",
+                    batch_index + 1, total_batches, exc, batch_index,
+                )
+
             return {
-                "error":       "qdrant_upsert_failed",
-                "batch_start": i,
-                "saved_so_far":saved,
-                "exception":   str(exc),
+                "error":             "credits_exhausted" if is_credits else "upsert_failed",
+                "failed_batch":      batch_index,
+                "resume_from_batch": batch_index,   # next run will start here
+                "saved_so_far":      saved_so_far,
+                "remaining":         total - saved_so_far,
+                "exception":         err_msg,
             }
 
-    summary = {"total": total, "saved": saved, "collection": COLLECTION_NAME}
+    # ── All batches complete ──────────────────────────────────────────
+    # Remove the progress file so a fresh run in future starts clean
+    if progress_file.exists():
+        progress_file.unlink()
+        logger.info("Checkpoint file removed — Stage 2 fully complete.")
+
+    summary = {
+        "total":           total,
+        "saved":           saved_so_far,
+        "skipped_batches": skipped_batches,
+        "collection":      COLLECTION_NAME,
+    }
     logger.info("Stage 2 complete: {}", summary)
     return summary
 
