@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
-from infrastructure.llm.embeddings import get_embedding
+from infastructure.llm.embeddings import get_embedding
 
 load_dotenv()
 
@@ -86,9 +86,9 @@ class ProceduralStore:
                     )]
                 )
 
-            results = await self._qdrant.search(
+            results = await self._qdrant.query_points(
                 collection_name = COLLECTION_NAME,
-                query_vector    = embedding,
+                query           = embedding,
                 query_filter    = search_filter,
                 limit           = top_k,
                 with_payload    = True,
@@ -155,9 +155,9 @@ class ProceduralStore:
         """
         try:
             embedding = await get_embedding(resolution_keyword)
-            results   = await self._qdrant.search(
+            results   = await self._qdrant.query_points(
                 collection_name = COLLECTION_NAME,
-                query_vector    = embedding,
+                query           = embedding,
                 limit           = top_k,
                 with_payload    = True,
             )

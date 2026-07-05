@@ -19,7 +19,7 @@ import os
 from loguru import logger
 from dotenv import load_dotenv
 
-from qdrant_client import AsyncQdrantClient
+from qdrant_client import AsyncQdrantClient, QueryRequest
 from infastructure.config import get_config
 from infastructure.llm.embeddings import get_embedding
 
@@ -116,9 +116,9 @@ class CRAGRetriever:
         """
         try:
             embedding = await get_embedding(query)
-            results   = await self._qdrant.search(
+            results   = await self._qdrant.query_points(
                 collection_name = COLLECTION,
-                query_vector    = embedding,
+                query           = embedding,
                 limit           = limit,
                 with_payload    = True,
             )

@@ -242,8 +242,8 @@ async def run_cag_population() -> dict:
 
         answer = await _generate_answer(groq_client, label, cluster_records)
 
-        # Embed using the cluster label + first example problem
-        embed_text = f"{label} {cluster_records[0].get('problem', '')}"
+        # Embed using the generated answer
+        embed_text = answer
         vector     = await get_embedding(embed_text)
 
         points.append(PointStruct(
