@@ -1,0 +1,149 @@
+"""
+api/routers/chat.py — Chat endpoints.
+
+POST /chat        — process a ticket synchronously, return full resolution
+POST /chat/stream — stream agent progress as server-sent events
+
+Both routes call decision_graph.process_ticket() which runs:
+  guardrail → router → (CAG hit? fast return) → L1 → L2 → L3 → write-back
+"""
+
+import json
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from loguru import logger
+
+from api.schemas import ChatRequest, ChatResponse
+from agents.decision_graph import process_ticket
+from agents.state import AgentState
+from memory.st_store import STStore
+
+router = APIRouter()
+
+
+def _state_to_response(state: AgentState) -> ChatResponse:
+    """Convert final AgentState to ChatResponse."""
+    return ChatResponse(
+        ticket_id        = state.get("ticket_id", ""),
+        resolution       = state.get("resolution"),
+        ticket_type      = state.get("ticket_type"),
+        severity         = state.get("severity"),
+        runbook_used     = state.get("runbook_used"),
+        action_taken     = state.get("action_taken"),
+        cag_hit          = state.get("cag_hit", False),
+        is_safe          = state.get("is_safe", True),
+        guardrail_reason = state.get("guardrail_reason"),
+        error            = state.get("error"),
+        started_at       = state.get("started_at"),
+        resolved_at      = state.get("resolved_at"),
+    )
+
+
+@router.post("", response_model=ChatResponse)
+async def chat(request: ChatRequest) -> ChatResponse:
+    """
+    Process an IT support ticket through the full agent swarm.
+
+    Flow:
+      guardrail → CAG check → (hit: fast return) → L1 → L2 → L3 → write-back
+
+    Returns the final resolution synchronously.
+    """
+    logger.info(
+        "POST /chat | user={} message='{:.60s}'",
+        request.user_id, request.message,
+    )
+
+    try:
+        # Save user's message to ST memory if continuing an existing ticket
+        if request.ticket_id:
+            st = STStore()
+            await st.add_turn(request.ticket_id, "user", request.message)
+
+        final_state = await process_ticket(
+            ticket  = request.message,
+            user_id = request.user_id,
+        )
+
+        response = _state_to_response(final_state)
+
+        logger.info(
+            "POST /chat complete | ticket={} type={} severity={} cag_hit={}",
+            response.ticket_id, response.ticket_type,
+            response.severity, response.cag_hit,
+        )
+        return response
+
+    except Exception as exc:
+        logger.error("POST /chat failed: {}", exc)
+        raise HTTPException(status_code=500, detail=f"Internal error: {exc}")
+
+
+@router.post("/stream")
+async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    """
+    Stream ticket processing progress as Server-Sent Events.
+
+    Events emitted:
+      {"event": "start",  "data": "Processing your ticket..."}
+      {"event": "update", "data": "L1: Classified as Type 4, critical"}
+      {"event": "update", "data": "L2: Investigating metrics..."}
+      {"event": "update", "data": "L3: Applying resolution..."}
+      {"event": "done",   "state": {full ChatResponse dict}}
+      {"event": "error",  "data": "error message"}
+    """
+
+    async def event_generator():
+        try:
+            yield _sse("start", "Processing your ticket...")
+
+            # Run the full swarm (non-streaming internally)
+            # In a full implementation you would use LangGraph streaming
+            # For now we yield progress updates based on state changes
+            yield _sse("update", "Running safety check...")
+            final_state = await process_ticket(
+                ticket  = request.message,
+                user_id = request.user_id,
+            )
+
+            # Emit intermediate state updates based on what ran
+            if final_state.get("cag_hit"):
+                yield _sse("update", "Cache hit — returning instant answer")
+            else:
+                if final_state.get("ticket_type"):
+                    yield _sse(
+                        "update",
+                        f"L1: Classified as Type {final_state['ticket_type']}, "
+                        f"severity={final_state.get('severity', 'unknown')}",
+                    )
+                if final_state.get("findings"):
+                    yield _sse("update", "L2: Investigation complete")
+                if final_state.get("resolution"):
+                    yield _sse("update", "L3: Resolution ready")
+
+            response = _state_to_response(final_state)
+            yield _sse("done", state=response.model_dump())
+
+        except Exception as exc:
+            logger.error("Stream error: {}", exc)
+            yield _sse("error", str(exc))
+
+    return StreamingResponse(
+        event_generator(),
+        media_type = "text/event-stream",
+        headers    = {
+            "Cache-Control":               "no-cache",
+            "X-Accel-Buffering":           "no",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
+
+def _sse(event: str, data: str = "", state: dict = None) -> str:
+    """Format a Server-Sent Event string."""
+    payload = {"event": event, "data": data}
+    if state:
+        payload["state"] = state
+    return f"data: {json.dumps(payload)}\n\n"
