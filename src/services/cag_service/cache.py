@@ -9,12 +9,13 @@ Also seeded by cag_populator.py during ingest pipeline.
 Qdrant collection: cag_cache
 """
 
+
 import os
 from loguru import logger
 from dotenv import load_dotenv
 
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import PointStruct
+from qdrant_client.models import PointStruct,QueryRequest 
 from infastructure.config import get_config
 from infastructure.llm.embeddings import get_embedding
 from services.cag_service.matcher import CAGMatcher
@@ -67,17 +68,17 @@ class CAGCache:
         """
         try:
             embedding = await get_embedding(query)
-            results   = await self._qdrant.search(
+            results = await self._qdrant.query_points(
                 collection_name = COLLECTION,
-                query_vector    = embedding,
+                query           = embedding,
                 limit           = self._top_k,
                 with_payload    = True,
             )
 
-            if not results:
+            if not results.points:
                 return None
 
-            top = results[0]
+            top   = results.points[0]
             score = top.score
 
             if score >= self._threshold:
