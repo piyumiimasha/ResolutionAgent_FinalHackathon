@@ -11,10 +11,10 @@ No further nodes (router, swarm) are ever called.
 
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
-from state import AgentState
-from prompts.agent_prompts import GUARDRAIL_PROMPT
-from infrastructure.llm.factory import get_small_llm
-from infrastructure.observability import get_tracer
+from agents.state import AgentState
+from agents.prompts.agent_prompts import GUARDRAIL_PROMPT
+from infastructure.llm.factory import get_small_llm
+from infastructure.observability import get_tracer
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()

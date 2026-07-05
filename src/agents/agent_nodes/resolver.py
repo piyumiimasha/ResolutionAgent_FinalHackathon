@@ -13,8 +13,8 @@ This is the last agent node before write-back.
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from state import AgentState
-from prompts.agent_prompts import L3_RESOLVER_PROMPT
+from agents.state import AgentState
+from agents.prompts.agent_prompts import L3_RESOLVER_PROMPT
 from services.rag_service.chain import RAGChain
 from infrastructure.llm.factory import get_large_llm
 from infrastructure.observability import get_tracer

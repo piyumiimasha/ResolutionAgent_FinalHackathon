@@ -13,8 +13,8 @@ Does NOT propose or execute fixes. Only gathers evidence.
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from state import AgentState
-from prompts.agent_prompts import L2_INVESTIGATOR_PROMPT
+from agents.state import AgentState
+from agents.prompts.agent_prompts import L2_INVESTIGATOR_PROMPT
 from memory.memory_ops import Recaller
 from memory.procedural_store import ProceduralStore
 from infrastructure.llm.factory import get_large_llm

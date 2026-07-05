@@ -14,8 +14,8 @@ import json
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from state import AgentState
-from prompts.agent_prompts import L1_TRIAGE_PROMPT
+from agents.state import AgentState
+from agents.prompts.agent_prompts import L1_TRIAGE_PROMPT
 from memory.memory_ops import Recaller
 from infrastructure.llm.factory import get_small_llm
 from infrastructure.observability import get_tracer
