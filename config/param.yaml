@@ -109,8 +109,8 @@ memory:
 # CAG (Cache-Augmented Generation)
 # ============================================================================
 cag:
-  similarity_threshold: 0.82    # cosine score above this = cache hit (fast-path)
-  min_frequency: 5              # min transcript occurrences to seed into cache
+  similarity_threshold: 0.45    # cosine score above this = cache hit (fast-path)
+  min_frequency: 3              # min transcript occurrences to seed into cache
   top_k: 1                      # return top 1 cache match only
   ticket_types_cached: [1]      # only Type 1 (Access & Identity) goes into CAG
 
