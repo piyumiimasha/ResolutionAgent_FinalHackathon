@@ -165,3 +165,188 @@ async def run_swarm(state: AgentState) -> AgentState:
         span.set_attribute("ticket_id", state.get("ticket_id", ""))
         graph = _get_swarm_graph()
         return await graph.ainvoke(state)
+    
+
+
+"""
+AgentOrchestrator — voice fast-path wrapper around the IT Support swarm.
+
+Append this to the bottom of src/agents/orchestrator.py
+(after the existing run_swarm / build_swarm_graph code).
+
+Voice fast-path design:
+    achat_stream_fast() skips the full L1→L2→L3 fan-out and goes directly
+    to a single streaming LLM call. This keeps first-token latency under
+    ~800 ms from transcript receipt, well within the 2s perceived-latency
+    target (Deepgram TTS TTFB ~200 ms + LiveKit audio buffer ~100 ms).
+
+[interrupted] memory tagging:
+    On barge-in, LiveKit fires asyncio.CancelledError into achat_stream_fast().
+    We catch it here, save the partial answer to ShortTermMemoryStore tagged
+    "[interrupted]", then re-raise so the voice adapter knows the task ended.
+    Memory integrity rule: unsaid content is NEVER saved.
+"""
+
+import asyncio
+import time
+from typing import AsyncGenerator
+
+from loguru import logger
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_groq import ChatGroq
+
+from memory.schemas import ConversationTurn
+from memory.st_store import ShortTermMemoryStore
+from infrastructure.config import ST_MAX_TURNS, ST_TTL_SECONDS
+
+
+# ── Voice fast-path system prompt ─────────────────────────────────────────────
+
+_VOICE_SYSTEM_PROMPT = """\
+You are the Zuu Crew AI IT Support assistant on a voice call.
+Keep replies short, clear, and action-oriented — 1 to 3 sentences maximum.
+No bullet points, no markdown, no asterisks.
+If giving steps, use natural speech: "First... then... finally..."
+Always confirm what you are investigating before giving the answer."""
+
+
+# ── Orchestrator ──────────────────────────────────────────────────────────────
+
+class AgentOrchestrator:
+    """
+    Thin wrapper that exposes the IT Support swarm to the voice layer.
+
+    The voice pipeline only calls achat_stream_fast(). The full L1→L2→L3
+    swarm graph (run_swarm) is called separately by the HTTP chat endpoint
+    via decision_graph — the orchestrator does not duplicate that logic.
+
+    Attributes
+    ----------
+    llm_fast : ChatGroq
+        Groq Llama-3.3-70B — used for the voice fast-path.
+        ~500-800 ms TTFT, ~200 tok/s. Low enough for sub-2s perceived latency.
+    st_store : ShortTermMemoryStore
+        Used to save [interrupted] partials and completed voice turns.
+    """
+
+    def __init__(self) -> None:
+        self.llm_fast = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            temperature=0.0,
+            streaming=True,
+        )
+        self.st_store = ShortTermMemoryStore()
+        logger.info("AgentOrchestrator ready (voice fast-path: Groq llama-3.3-70b)")
+
+    async def achat_stream_fast(
+        self,
+        user_message: str,
+        user_id: str,
+        session_id: str,
+    ) -> AsyncGenerator[tuple[str, object], None]:
+        """
+        Voice fast-path: stream tokens directly from a single LLM call.
+
+        Yields
+        ------
+        ("token",   str)     — each incremental token as it arrives
+        ("partial", str)     — running concatenation of tokens emitted so far
+        ("final",   object)  — simple response object after the last token
+
+        On asyncio.CancelledError (barge-in):
+            Saves the partial answer to ShortTermMemoryStore with the
+            "[interrupted]" suffix, then re-raises CancelledError so the
+            voice adapter knows the task ended early.
+            Unsaid content is NEVER saved.
+        """
+        # Save the user turn to short-term memory
+        try:
+            self.st_store.append(
+                ConversationTurn(
+                    user_id=user_id,
+                    session_id=session_id,
+                    role="user",
+                    content=user_message,
+                    ts=time.time(),
+                ),
+                max_turns=ST_MAX_TURNS,
+                ttl_seconds=ST_TTL_SECONDS,
+            )
+        except Exception as e:
+            logger.warning(f"ST save (user turn) failed (non-fatal): {e}")
+
+        messages = [
+            SystemMessage(content=_VOICE_SYSTEM_PROMPT),
+            HumanMessage(content=user_message),
+        ]
+
+        spoken_parts: list[str] = []
+
+        try:
+            async for chunk in self.llm_fast.astream(messages):
+                token: str = chunk.content or ""
+                if not token:
+                    continue
+                spoken_parts.append(token)
+                yield ("token", token)
+                yield ("partial", "".join(spoken_parts))
+
+            full_answer = "".join(spoken_parts).strip()
+
+            # Save completed assistant turn to short-term memory
+            try:
+                self.st_store.append(
+                    ConversationTurn(
+                        user_id=user_id,
+                        session_id=session_id,
+                        role="assistant",
+                        content=full_answer,
+                        ts=time.time(),
+                    ),
+                    max_turns=ST_MAX_TURNS,
+                    ttl_seconds=ST_TTL_SECONDS,
+                )
+            except Exception as e:
+                logger.warning(f"ST save (assistant turn) failed (non-fatal): {e}")
+
+            # Simple response object — voice adapter reads .route and .tier
+            yield ("final", _VoiceResponse(answer=full_answer))
+
+        except asyncio.CancelledError:
+            # ── Barge-in: save only what was spoken, tagged [interrupted] ──
+            partial = "".join(spoken_parts).strip()
+            if partial:
+                try:
+                    self.st_store.append(
+                        ConversationTurn(
+                            user_id=user_id,
+                            session_id=session_id,
+                            role="assistant",
+                            content=f"{partial} [interrupted]",
+                            ts=time.time(),
+                        ),
+                        max_turns=ST_MAX_TURNS,
+                        ttl_seconds=ST_TTL_SECONDS,
+                    )
+                    logger.info(
+                        f"[interrupted] Saved partial to ST memory "
+                        f"({len(partial)} chars) for session={session_id}"
+                    )
+                except Exception as e:
+                    logger.warning(f"ST save ([interrupted] partial) failed (non-fatal): {e}")
+            raise  # Must re-raise so voice adapter logs it correctly
+
+
+class _VoiceResponse:
+    """Minimal response object yielded as the 'final' tuple payload."""
+    def __init__(self, answer: str) -> None:
+        self.answer = answer
+        self.route = "voice_fast"
+        self.tier = "L1"
+
+
+# ── Factory function called by voice/agent.py ─────────────────────────────────
+
+def build_agent() -> AgentOrchestrator:
+    """Build and return the AgentOrchestrator. Called once per worker process."""
+    return AgentOrchestrator()

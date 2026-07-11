@@ -212,3 +212,29 @@ logging:
 # Environment
 # ============================================================================
 environment: development          # development | production
+
+# ============================================================================
+# Voice (STT, TTS, VAD, Pipeline)
+# ============================================================================
+
+voice:
+  # STT — Deepgram Nova-3 (streaming, low-latency)
+  stt_provider: deepgram
+  stt_model: nova-3
+  stt_language: en
+
+  # TTS — Deepgram Aura 2 (~200ms TTFB, same API key as STT)
+  # Switch to elevenlabs for premium voices (requires ELEVEN_API_KEY)
+  tts_provider: deepgram
+  tts_model: aura-2-en-us
+  tts_voice_id: ""              # ElevenLabs only; blank for Deepgram
+
+  # VAD (Silero — runs on device, no API call)
+  vad_threshold: 0.5            # 0.0-1.0; lower = more sensitive
+  silence_threshold_ms: 300     # ms of silence before end-of-utterance
+  min_endpointing_delay: 0.3    # extra buffer (seconds) after silence detected
+
+  # Pipeline
+  interruption_enabled: true    # Required for barge-in scoring (Part 3 criterion 2)
+  sample_rate: 16000            # Hz — Deepgram + Silero expect 16kHz
+
