@@ -24,7 +24,7 @@ from agents.agent_nodes.resolver import l3_resolver_node
 from memory.episodic_store import EpisodicStore
 from memory.memory_ops import Distiller
 from services.cag_service.cache import CAGCache
-from infastructure.observability import get_tracer
+from infrastructure.observability import get_tracer
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()

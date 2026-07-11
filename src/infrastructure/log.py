@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import sys
 import logging
-from infastructure.config import get_config
+from infrastructure.config import get_config
 
 
 class _InterceptHandler(logging.Handler):

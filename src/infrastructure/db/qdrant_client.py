@@ -17,7 +17,7 @@ from qdrant_client.models import VectorParams, Distance, CollectionInfo
 from loguru import logger
 from dotenv import load_dotenv
 
-from infastructure.config import get_config, get_embedding_dimensions
+from infrastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 

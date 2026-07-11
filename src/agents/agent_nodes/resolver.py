@@ -17,8 +17,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from agents.state import AgentState
 from agents.prompts.agent_prompts import L3_RESOLVER_PROMPT
 from services.rag_service.chain import RAGChain
-from infastructure.llm.factory import get_large_llm
-from infastructure.observability import get_tracer
+from infrastructure.llm.factory import get_large_llm
+from infrastructure.observability import get_tracer
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()

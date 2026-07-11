@@ -29,7 +29,7 @@ from loguru import logger
 from dotenv import load_dotenv
 
 from memory.schemas import MemoryFact
-from infastructure.llm.embeddings import get_embedding
+from infrastructure.llm.embeddings import get_embedding
 
 load_dotenv()
 

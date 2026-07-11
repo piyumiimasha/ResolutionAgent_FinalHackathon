@@ -24,11 +24,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 
-from src.infastructure.log import configure_logging
-from src.infastructure.config import get_config
-from src.infastructure.observability import get_tracer, flush_traces
-from src.infastructure.db.supabase_client import check_connection as supabase_health
-from src.infastructure.db.qdrant_client import check_connection as qdrant_health, ensure_collections
+from src.infrastructure.log import configure_logging
+from src.infrastructure.config import get_config
+from src.infrastructure.observability import get_tracer, flush_traces
+from src.infrastructure.db.supabase_client import check_connection as supabase_health
+from src.infrastructure.db.qdrant_client import check_connection as qdrant_health, ensure_collections
 from src.services.azure.blob_service_client  import check_connection as azure_health
 from api.routers import chat, tickets, health
 

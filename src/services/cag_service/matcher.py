@@ -8,7 +8,7 @@ Also used standalone for testing threshold calibration.
 """
 
 from loguru import logger
-from infastructure.config import get_config
+from infrastructure.config import get_config
 
 
 class CAGMatcher:

@@ -33,7 +33,7 @@ from azure.core.exceptions import ResourceNotFoundError, ServiceRequestError
 from loguru import logger
 from dotenv import load_dotenv
 
-from infastructure.config import get_config
+from infrastructure.config import get_config
 
 load_dotenv()
 

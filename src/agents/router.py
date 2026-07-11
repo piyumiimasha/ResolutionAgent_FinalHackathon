@@ -12,8 +12,8 @@ This node never calls the LLM. It is a pure cache lookup.
 import logging
 from agents.state import AgentState
 from services.cag_service.cache import CAGCache
-from infastructure.observability import get_tracer
-from infastructure.config import get_config
+from infrastructure.observability import get_tracer
+from infrastructure.config import get_config
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()

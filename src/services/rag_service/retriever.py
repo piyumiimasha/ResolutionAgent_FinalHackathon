@@ -7,8 +7,8 @@ from loguru import logger
 from dotenv import load_dotenv
 
 from qdrant_client import AsyncQdrantClient
-from infastructure.config import get_config
-from infastructure.llm.embeddings import get_embedding
+from infrastructure.config import get_config
+from infrastructure.llm.embeddings import get_embedding
 
 load_dotenv()
 

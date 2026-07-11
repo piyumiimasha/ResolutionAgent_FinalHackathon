@@ -31,8 +31,8 @@ from dotenv import load_dotenv
 
 import os
 from services.ingest_service.transcript_reader import TranscriptReader, ParsedTranscript
-from infastructure.llm.embeddings import get_embeddings_batch
-from infastructure.config import get_config, get_embedding_dimensions
+from infrastructure.llm.embeddings import get_embeddings_batch
+from infrastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 

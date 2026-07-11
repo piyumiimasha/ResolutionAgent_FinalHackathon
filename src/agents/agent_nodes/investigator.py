@@ -17,8 +17,8 @@ from agents.state import AgentState
 from agents.prompts.agent_prompts import L2_INVESTIGATOR_PROMPT
 from memory.memory_ops import Recaller
 from memory.procedural_store import ProceduralStore
-from infastructure.llm.factory import get_large_llm
-from infastructure.observability import get_tracer
+from infrastructure.llm.factory import get_large_llm
+from infrastructure.observability import get_tracer
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer()

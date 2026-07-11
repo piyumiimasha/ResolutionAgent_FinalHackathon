@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import uvicorn
-from src.infastructure.config import get_config
+from src.infrastructure.config import get_config
 
 
 def main():

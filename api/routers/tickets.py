@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 
 from api.schemas import TicketDetail, TicketListItem, TicketListResponse
-from src.infastructure.db.supabase_client import get_supabase
+from src.infrastructure.db.supabase_client import get_supabase
 
 router = APIRouter()
 
