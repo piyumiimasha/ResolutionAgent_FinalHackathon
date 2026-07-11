@@ -92,13 +92,14 @@ def create_app() -> FastAPI:
 
     # ── CORS ──────────────────────────────────────────────────────────
     origins = api_cfg.get("cors_origins", ["http://localhost:3000"])
+    
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins     = origins,
-        allow_credentials = True,
-        allow_methods     = ["*"],
-        allow_headers     = ["*"],
-    )
+    CORSMiddleware,
+    allow_origins     = ["*"],
+    allow_credentials = False,
+    allow_methods     = ["*"],
+    allow_headers     = ["*"],
+)
 
     # ── Routers ───────────────────────────────────────────────────────
     app.include_router(health.router,  prefix="/health",  tags=["Health"])

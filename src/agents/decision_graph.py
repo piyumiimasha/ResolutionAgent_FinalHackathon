@@ -136,3 +136,9 @@ async def process_ticket(ticket: str, user_id: str = None) -> AgentState:
         except Exception as exc:
             logger.error("Decision graph failed for ticket %s: %s", initial_state["ticket_id"], exc)
             return {**initial_state, "error": str(exc)}
+        finally:
+            # Flush immediately so traces appear in Langfuse dashboard
+            from infastructure.observability import get_langfuse
+            lf = get_langfuse()
+            if lf:
+                lf.flush()

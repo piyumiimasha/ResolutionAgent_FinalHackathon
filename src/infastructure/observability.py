@@ -2,16 +2,17 @@
 observability.py — Langfuse tracing + prompt management.
 
 Provides:
-  - get_tracer()     → returns a LangfuseTracer context manager used in every agent node
+  - get_tracer()     → returns a LangfuseTracer used in every agent node
   - get_langfuse()   → raw Langfuse client for custom spans
   - LangfuseTracer   → thin wrapper so agent code stays clean
+  - flush_traces()   → flush pending events on shutdown
 
 Every agent node wraps its work in:
     with tracer.start_span("l1_triage") as span:
         span.set_attribute("ticket_id", ...)
 
 This produces the full trace chain in Langfuse:
-  decision_graph → guardrail → router → swarm → l1 → l2 → l3 → write_back
+  decision_graph → guardrail → router → l1 → l2 → l3
 """
 
 import os
@@ -19,7 +20,6 @@ from contextlib import contextmanager
 from typing import Any, Generator
 
 from langfuse import Langfuse
-from langfuse.langchain import CallbackHandler
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -35,19 +35,19 @@ _langfuse_client: Langfuse | None = None
 
 def get_langfuse() -> Langfuse | None:
     """
-    Returns the Langfuse client, or None if observability is disabled
-    or credentials are missing.
+    Returns the Langfuse client singleton.
+    Returns None if credentials are missing or observability is disabled.
     """
     global _langfuse_client
-    cfg = get_config()
 
+    cfg = get_config()
     if not cfg.get("observability", {}).get("enabled", True):
         return None
 
     if _langfuse_client is None:
-        public_key  = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-        secret_key  = os.getenv("LANGFUSE_SECRET_KEY", "")
-        host        = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+        public_key = os.getenv("LANGFUSE_PUBLIC_KEY", "")
+        secret_key = os.getenv("LANGFUSE_SECRET_KEY", "")
+        host       = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
 
         if not public_key or not secret_key:
             logger.warning(
@@ -56,30 +56,18 @@ def get_langfuse() -> Langfuse | None:
             )
             return None
 
-        _langfuse_client = Langfuse(
-            public_key = public_key,
-            secret_key = secret_key,
-            host       = host,
-        )
-        logger.info("Langfuse client initialised (host={})", host)
+        try:
+            _langfuse_client = Langfuse(
+                public_key = public_key,
+                secret_key = secret_key,
+                host       = host,
+            )
+            logger.info("Langfuse client initialised (host={})", host)
+        except Exception as exc:
+            logger.warning("Langfuse init failed: {} — observability disabled", exc)
+            return None
 
     return _langfuse_client
-
-
-def get_langfuse_callback() -> CallbackHandler | None:
-    """
-    Returns a LangChain-compatible Langfuse CallbackHandler.
-    Pass this to LLM calls to auto-trace them:
-        llm.ainvoke(messages, config={"callbacks": [get_langfuse_callback()]})
-    """
-    lf = get_langfuse()
-    if lf is None:
-        return None
-    return CallbackHandler(
-        public_key = os.getenv("LANGFUSE_PUBLIC_KEY"),
-        secret_key = os.getenv("LANGFUSE_SECRET_KEY"),
-        host       = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com"),
-    )
 
 
 # ── Span wrapper ──────────────────────────────────────────────────────────────
@@ -87,36 +75,42 @@ def get_langfuse_callback() -> CallbackHandler | None:
 class _Span:
     """
     Thin wrapper around a Langfuse span.
-    Falls back to no-op if Langfuse is not configured.
+    All methods are no-ops if Langfuse is not configured — the app
+    never crashes because of a missing trace.
     """
 
     def __init__(self, span: Any | None):
         self._span = span
 
     def set_attribute(self, key: str, value: Any) -> None:
+        """Attach metadata to this span."""
         if self._span is not None:
             try:
-                self._span.update(metadata={key: value})
+                self._span.update(metadata={key: str(value)})
             except Exception:
-                pass    # never let observability crash the main flow
+                pass
 
     def set_error(self, error: Exception) -> None:
+        """Mark this span as errored."""
         if self._span is not None:
             try:
                 self._span.update(
-                    level      = "ERROR",
+                    level          = "ERROR",
                     status_message = str(error),
                 )
             except Exception:
                 pass
 
     def end(self) -> None:
+        """End this span."""
         if self._span is not None:
             try:
                 self._span.end()
             except Exception:
                 pass
 
+
+# ── Tracer ────────────────────────────────────────────────────────────────────
 
 class LangfuseTracer:
     """
@@ -135,28 +129,46 @@ class LangfuseTracer:
     def __init__(self, trace_name: str = "it_support_swarm"):
         self._lf         = get_langfuse()
         self._trace_name = trace_name
-        self._trace      = None
+        self._trace_id   = None
 
         if self._lf is not None:
             try:
-                self._trace = self._lf.trace(name=trace_name)
-            except Exception as exc:
-                logger.warning("Failed to create Langfuse trace: {}", exc)
+                # Create a root trace — all spans nest under this
+                trace = self._lf.trace(name=trace_name)
+                self._trace_id = trace.id
+                logger.debug("Langfuse trace created: id={}", self._trace_id)
+            except Exception:
+                # .trace() failed — fall back to span-level tracing
+                self._trace_id = None
 
     @contextmanager
     def start_span(self, name: str) -> Generator[_Span, None, None]:
         """
         Context manager that creates a Langfuse span and yields a _Span wrapper.
+        Falls back to a no-op span if Langfuse is unavailable.
 
         Args:
-            name: Span name e.g. "l1_triage", "cag_lookup", "write_back"
+            name: Span name e.g. "l1_triage", "l2_investigator", "l3_resolver"
         """
         raw_span = None
-        if self._trace is not None:
+
+        if self._lf is not None:
             try:
-                raw_span = self._trace.span(name=name)
+                if self._trace_id is not None:
+                    # Preferred: nest span under the root trace
+                    raw_span = self._lf.span(
+                        name     = name,
+                        trace_id = self._trace_id,
+                    )
+                else:
+                    # Fallback: create span as its own trace
+                    raw_span = self._lf.span(
+                        name       = name,
+                        trace_name = self._trace_name,
+                    )
             except Exception as exc:
                 logger.warning("Failed to create Langfuse span '{}': {}", name, exc)
+                raw_span = None
 
         span = _Span(raw_span)
         try:
@@ -168,7 +180,7 @@ class LangfuseTracer:
             span.end()
 
 
-# ── Singleton tracer factory ──────────────────────────────────────────────────
+# ── Singleton factory ─────────────────────────────────────────────────────────
 
 _tracer: LangfuseTracer | None = None
 
@@ -186,7 +198,8 @@ def get_tracer() -> LangfuseTracer:
 
 def flush_traces() -> None:
     """
-    Flush pending Langfuse events to the server.
+    Flush all pending Langfuse events to the server.
+    Call after every request during dev so traces appear immediately.
     Call during app shutdown to avoid losing trace data.
     """
     lf = get_langfuse()

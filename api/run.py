@@ -6,6 +6,9 @@ Usage:
     # or via Makefile:
     make demo
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import uvicorn
 from src.infastructure.config import get_config
