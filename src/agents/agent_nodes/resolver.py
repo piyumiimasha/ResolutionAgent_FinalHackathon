@@ -3,13 +3,14 @@ l3_resolver.py — L3 Resolution Agent node.
 
 Responsibilities:
   1. Retrieve the correct runbook from Qdrant via RAG.
-  2. Synthesise findings + runbook into a concrete resolution plan.
+  2. Synthesise findings + runbook into a user-friendly resolution.
   3. Call Action MCP to execute the fix (mock restart/scale/patch).
-  4. Write resolution, runbook_used, action_taken to state.
+  4. Write resolution (user-facing), runbook_used, action_taken to state.
 
 This is the last agent node before write-back.
 """
 
+import json
 import logging
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -27,25 +28,25 @@ async def _execute_action_mcp(action_plan: str, ticket_type: int, severity: str)
     """
     Calls the Action MCP server to execute the proposed fix.
     Returns a string describing what was executed.
-    Handles MCP failures gracefully — resolution is still returned even if action fails.
+    Handles MCP failures gracefully.
     """
     try:
         from mcp_servers.action_server import ActionMCPClient
         client = ActionMCPClient()
         result = await client.execute(
-            action=action_plan,
-            ticket_type=ticket_type,
-            severity=severity,
+            action      = action_plan,
+            ticket_type = ticket_type,
+            severity    = severity,
         )
-        return result or "Action executed (no detail returned by MCP)."
+        return result or "Action executed."
     except Exception as exc:
         logger.error("Action MCP execution failed: %s", exc)
-        return f"Action MCP unavailable — manual execution required. Proposed: {action_plan}"
+        return f"Action MCP unavailable — manual execution required."
 
 
 async def l3_resolver_node(state: AgentState) -> AgentState:
     """
-    LangGraph node — proposes and executes the resolution.
+    LangGraph node — resolves the incident and returns a user-friendly message.
 
     Args:
         state: AgentState after L2 has set findings.
@@ -61,18 +62,17 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
             # ── 1. Retrieve runbook via RAG ───────────────────────────
             rag = RAGChain()
             runbook_context, runbook_source = await rag.retrieve_and_format(
-                query=state.get("findings", state["ticket"]),
-                ticket_type=state.get("ticket_type", 1),
+                query       = state.get("findings", state["ticket"]),
+                ticket_type = state.get("ticket_type", 1),
             )
-
             span.set_attribute("runbook_source", runbook_source or "none")
 
             # ── 2. LLM synthesises resolution ─────────────────────────
             llm = get_large_llm()
 
             system_prompt = L3_RESOLVER_PROMPT.format(
-                runbook_context=runbook_context or "No matching runbook found.",
-                runbook_source=runbook_source or "N/A",
+                runbook_context = runbook_context or "No matching runbook found.",
+                runbook_source  = runbook_source or "N/A",
             )
 
             messages = [
@@ -85,25 +85,47 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
             ]
 
             response = await llm.ainvoke(messages)
-            resolution_plan = response.content.strip()
+            raw      = response.content.strip()
 
-            # ── 3. Execute via Action MCP ─────────────────────────────
-            action_result = await _execute_action_mcp(
-                action_plan=resolution_plan,
-                ticket_type=state.get("ticket_type", 1),
-                severity=state.get("severity", "low"),
-            )
+            # ── 3. Parse JSON response ────────────────────────────────
+            try:
+                # Strip markdown fences if LLM added them
+                clean  = raw.replace("```json", "").replace("```", "").strip()
+                parsed = json.loads(clean)
 
-            # ── 4. Compose final resolution string ────────────────────
-            final_resolution = (
-                f"{resolution_plan}\n\n"
-                f"**Action Executed:** {action_result}\n"
-                f"**Runbook:** {runbook_source or 'N/A'}"
-            )
+                user_message = parsed.get("user_message", "").strip()
+                action_str   = parsed.get("action_mcp", "").strip()
+                summary      = parsed.get("summary", "").strip()
 
-            # ── 5. Update conversation history ────────────────────────
+            except (json.JSONDecodeError, KeyError):
+                # Fallback: use raw response as user message
+                logger.warning(
+                    "L3 JSON parse failed for ticket %s — using raw response",
+                    state.get("ticket_id"),
+                )
+                user_message = raw
+                action_str   = ""
+                summary      = raw[:120]
+
+            # ── 4. Execute via Action MCP ─────────────────────────────
+            action_result = ""
+            if action_str:
+                action_result = await _execute_action_mcp(
+                    action_plan = action_str,
+                    ticket_type = state.get("ticket_type", 1),
+                    severity    = state.get("severity", "low"),
+                )
+
+            # ── 5. Final user-facing resolution ───────────────────────
+            # Clean and conversational — no internal labels shown to user
+            final_resolution = user_message
+
+            # ── 6. Update conversation history ────────────────────────
             history = state.get("conversation_history", [])
-            history.append({"role": "l3_resolver", "content": final_resolution})
+            history.append({
+                "role":    "l3_resolver",
+                "content": final_resolution,
+            })
 
             logger.info(
                 "L3 resolved ticket %s using runbook: %s",
@@ -112,24 +134,24 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
 
             return {
                 **state,
-                "resolution": final_resolution,
-                "runbook_used": runbook_source,
-                "action_taken": action_result,
+                "resolution":           final_resolution,
+                "runbook_used":         runbook_source,
+                "action_taken":         action_result or action_str,
                 "conversation_history": history,
             }
 
         except Exception as exc:
             logger.error("L3 resolver error for ticket %s: %s", state.get("ticket_id"), exc)
             fallback = (
-                f"Automated resolution failed: {exc}. "
-                "Please review L2 findings and apply manual fix. "
-                f"Ticket ID: {state.get('ticket_id')}"
+                "I've reviewed your ticket and flagged it for manual review. "
+                "An engineer will follow up shortly. "
+                f"Reference ID: {state.get('ticket_id', '')}"
             )
             return {
                 **state,
-                "resolution": fallback,
-                "runbook_used": None,
-                "action_taken": "none — error occurred",
+                "resolution":  fallback,
+                "runbook_used":None,
+                "action_taken":"none — error occurred",
                 "retry_count": state.get("retry_count", 0) + 1,
-                "error": str(exc),
+                "error":       str(exc),
             }
