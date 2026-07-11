@@ -1,11 +1,8 @@
 """
 api/routers/chat.py — Chat endpoints.
 
-POST /chat        — process a ticket synchronously, return full resolution
-POST /chat/stream — stream agent progress as server-sent events
-
-Both routes call decision_graph.process_ticket() which runs:
-  guardrail → router → (CAG hit? fast return) → L1 → L2 → L3 → write-back
+POST /chat        — process a ticket synchronously
+POST /chat/stream — stream agent progress as SSE
 """
 
 import json
@@ -24,7 +21,6 @@ router = APIRouter()
 
 
 def _state_to_response(state: AgentState) -> ChatResponse:
-    """Convert final AgentState to ChatResponse."""
     return ChatResponse(
         ticket_id        = state.get("ticket_id", ""),
         resolution       = state.get("resolution"),
@@ -44,35 +40,50 @@ def _state_to_response(state: AgentState) -> ChatResponse:
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
     """
-    Process an IT support ticket through the full agent swarm.
+    Process an IT support ticket.
 
-    Flow:
-      guardrail → CAG check → (hit: fast return) → L1 → L2 → L3 → write-back
-
-    Returns the final resolution synchronously.
+    If ticket_id is provided, this is a follow-up message on an existing
+    conversation — fetch history from ST memory and include it.
     """
     logger.info(
-        "POST /chat | user={} message='{:.60s}'",
-        request.user_id, request.message,
+        "POST /chat | user={} ticket_id={} message='{:.60s}'",
+        request.user_id, request.ticket_id, request.message,
     )
 
     try:
-        # Save user's message to ST memory if continuing an existing ticket
-        if request.ticket_id:
-            st = STStore()
-            await st.add_turn(request.ticket_id, "user", request.message)
+        st = STStore()
 
+        # ── Fetch existing conversation history if follow-up ──────────
+        conversation_history = []
+        if request.ticket_id:
+            existing_turns = await st.get_recent(request.ticket_id, n=20)
+            conversation_history = [
+                {"role": t["role"], "content": t["content"]}
+                for t in existing_turns
+            ]
+            logger.info(
+                "Follow-up on ticket {} — loaded {} turns from ST memory",
+                request.ticket_id, len(conversation_history),
+            )
+
+        # ── Save user message to ST memory ────────────────────────────
         final_state = await process_ticket(
-            ticket  = request.message,
-            user_id = request.user_id,
+            ticket               = request.message,
+            user_id              = request.user_id,
+            existing_ticket_id   = request.ticket_id,
+            conversation_history = conversation_history,
         )
 
-        response = _state_to_response(final_state)
+        # ── Save both user message and response to ST memory ──────────
+        tid = final_state.get("ticket_id", "")
+        await st.add_turn(tid, "user",  request.message)
+        if final_state.get("resolution"):
+            await st.add_turn(tid, "agent", final_state["resolution"])
 
+        response = _state_to_response(final_state)
         logger.info(
-            "POST /chat complete | ticket={} type={} severity={} cag_hit={}",
-            response.ticket_id, response.ticket_type,
-            response.severity, response.cag_hit,
+            "POST /chat complete | ticket={} cag_hit={}",
+            response.ticket_id, response.cag_hit,
         )
         return response
 
@@ -83,41 +94,38 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 @router.post("/stream")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
-    """
-    Stream ticket processing progress as Server-Sent Events.
-
-    Events emitted:
-      {"event": "start",  "data": "Processing your ticket..."}
-      {"event": "update", "data": "L1: Classified as Type 4, critical"}
-      {"event": "update", "data": "L2: Investigating metrics..."}
-      {"event": "update", "data": "L3: Applying resolution..."}
-      {"event": "done",   "state": {full ChatResponse dict}}
-      {"event": "error",  "data": "error message"}
-    """
+    """Stream ticket processing as Server-Sent Events."""
 
     async def event_generator():
         try:
-            yield _sse("start", "Processing your ticket...")
+            yield _sse("start", "Processing your request...")
 
-            # Run the full swarm (non-streaming internally)
-            # In a full implementation you would use LangGraph streaming
-            # For now we yield progress updates based on state changes
-            yield _sse("update", "Running safety check...")
+            st = STStore()
+            conversation_history = []
+            if request.ticket_id:
+                existing_turns = await st.get_recent(request.ticket_id, n=20)
+                conversation_history = [
+                    {"role": t["role"], "content": t["content"]}
+                    for t in existing_turns
+                ]
+
             final_state = await process_ticket(
-                ticket  = request.message,
-                user_id = request.user_id,
+                ticket               = request.message,
+                user_id              = request.user_id,
+                existing_ticket_id   = request.ticket_id,
+                conversation_history = conversation_history,
             )
 
-            # Emit intermediate state updates based on what ran
+            tid = final_state.get("ticket_id", "")
+            await st.add_turn(tid, "user",  request.message)
+            if final_state.get("resolution"):
+                await st.add_turn(tid, "agent", final_state["resolution"])
+
             if final_state.get("cag_hit"):
-                yield _sse("update", "Cache hit — returning instant answer")
+                yield _sse("update", "Cache hit — instant answer retrieved")
             else:
                 if final_state.get("ticket_type"):
-                    yield _sse(
-                        "update",
-                        f"L1: Classified as Type {final_state['ticket_type']}, "
-                        f"severity={final_state.get('severity', 'unknown')}",
-                    )
+                    yield _sse("update", f"L1: Type {final_state['ticket_type']}, {final_state.get('severity')}")
                 if final_state.get("findings"):
                     yield _sse("update", "L2: Investigation complete")
                 if final_state.get("resolution"):
@@ -142,7 +150,6 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
 
 
 def _sse(event: str, data: str = "", state: dict = None) -> str:
-    """Format a Server-Sent Event string."""
     payload = {"event": event, "data": data}
     if state:
         payload["state"] = state

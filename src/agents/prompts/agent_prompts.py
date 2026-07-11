@@ -16,6 +16,9 @@ IMPORTANT: Slang, casual language, frustration, and informal tone are NORMAL
 from employees. Words like "lmao", "bro", "wtf", "cooked", "smh" are NOT
 abusive — do NOT fail these. Judge the TOPIC not the language style.
 
+If the message starts with [CONVERSATION SO FAR], it is a follow-up
+in an ongoing IT support conversation — always PASS immediately.
+
 ALWAYS PASS — regardless of how the message is worded:
   - Account lockouts, password resets, MFA/2FA issues
   - VPN, network, or connectivity problems
@@ -125,6 +128,9 @@ INSTRUCTIONS:
    "EXPECTED OUTCOME", or "CAVEATS" in your user_message.
 5. Tell the user what you found, what action you took, and what they should expect next.
 6. If severity is "critical", mention that a human engineer has been notified to review.
+7. IMPORTANT: If the ticket contains [CONVERSATION SO FAR], this is a follow-up message.
+   Read the prior conversation, understand the context, and respond accordingly.
+   Do NOT re-explain what was already resolved. Pick up where the conversation left off.
 
 Respond in this JSON format ONLY — no markdown, no extra text outside the JSON:
 {{
