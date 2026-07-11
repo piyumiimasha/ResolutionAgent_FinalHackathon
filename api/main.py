@@ -20,6 +20,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from src.infastructure.log import configure_logging
 from src.infastructure.config import get_config
@@ -94,13 +97,21 @@ def create_app() -> FastAPI:
     origins = api_cfg.get("cors_origins", ["http://localhost:3000"])
     
     app.add_middleware(
-    CORSMiddleware,
-    allow_origins     = ["*"],
-    allow_credentials = False,
-    allow_methods     = ["*"],
-    allow_headers     = ["*"],
-)
+        CORSMiddleware,
+        allow_origins     = ["*"],
+        allow_credentials = False,
+        allow_methods     = ["*"],
+        allow_headers     = ["*"],
+    )
 
+    # Serve static files
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    @app.get("/")
+    async def serve_ui():
+        return FileResponse(os.path.join(static_dir, "index.html"))
+    
     # ── Routers ───────────────────────────────────────────────────────
     app.include_router(health.router,  prefix="/health",  tags=["Health"])
     app.include_router(chat.router,    prefix="/chat",    tags=["Chat"])
