@@ -19,8 +19,7 @@ from typing import Optional
 
 from loguru import logger
 
-# Note: intentional spelling — must match your project's folder name.
-from infastructure.config import _PARAMS, _get_nested
+from infrastructure.config import get_config
 
 
 # ── Dataclass ──────────────────────────────────────────────────
@@ -70,7 +69,7 @@ def load_voice_config() -> VoiceConfig:
     YAML ``voice:`` section values override the dataclass defaults;
     env vars fill credentials. Missing YAML keys use dataclass defaults silently.
     """
-    v = _get_nested(_PARAMS, "voice", default={}) or {}
+    v = get_config().get("voice", {}) or {}
 
     cfg = VoiceConfig(
         stt_provider=v.get("stt_provider", "deepgram"),

@@ -196,10 +196,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
 from memory.schemas import ConversationTurn
-from memory.st_store import ShortTermMemoryStore
-from infrastructure.config import ST_MAX_TURNS, ST_TTL_SECONDS
+from memory.st_store import STStore
+from infrastructure.config import get_config
 
-
+_cfg = get_config()  
+_ST_MAX_TURNS   = _cfg.get("memory", {}).get("st_max_turns", 30)
+_ST_TTL_SECONDS = _cfg.get("memory", {}).get("st_ttl_seconds", 86400)
 # ── Voice fast-path system prompt ─────────────────────────────────────────────
 
 _VOICE_SYSTEM_PROMPT = """\
@@ -225,7 +227,7 @@ class AgentOrchestrator:
     llm_fast : ChatGroq
         Groq Llama-3.3-70B — used for the voice fast-path.
         ~500-800 ms TTFT, ~200 tok/s. Low enough for sub-2s perceived latency.
-    st_store : ShortTermMemoryStore
+    st_store : STStore
         Used to save [interrupted] partials and completed voice turns.
     """
 
@@ -235,7 +237,7 @@ class AgentOrchestrator:
             temperature=0.0,
             streaming=True,
         )
-        self.st_store = ShortTermMemoryStore()
+        self.st_store = STStore()
         logger.info("AgentOrchestrator ready (voice fast-path: Groq llama-3.3-70b)")
 
     async def achat_stream_fast(
@@ -269,8 +271,8 @@ class AgentOrchestrator:
                     content=user_message,
                     ts=time.time(),
                 ),
-                max_turns=ST_MAX_TURNS,
-                ttl_seconds=ST_TTL_SECONDS,
+                max_turns=_ST_MAX_TURNS,
+                ttl_seconds=_ST_TTL_SECONDS,
             )
         except Exception as e:
             logger.warning(f"ST save (user turn) failed (non-fatal): {e}")
@@ -303,8 +305,8 @@ class AgentOrchestrator:
                         content=full_answer,
                         ts=time.time(),
                     ),
-                    max_turns=ST_MAX_TURNS,
-                    ttl_seconds=ST_TTL_SECONDS,
+                    max_turns=_ST_MAX_TURNS,
+                    ttl_seconds=_ST_TTL_SECONDS,
                 )
             except Exception as e:
                 logger.warning(f"ST save (assistant turn) failed (non-fatal): {e}")
@@ -325,8 +327,8 @@ class AgentOrchestrator:
                             content=f"{partial} [interrupted]",
                             ts=time.time(),
                         ),
-                        max_turns=ST_MAX_TURNS,
-                        ttl_seconds=ST_TTL_SECONDS,
+                        max_turns=_ST_MAX_TURNS,
+                        ttl_seconds=_ST_TTL_SECONDS,
                     )
                     logger.info(
                         f"[interrupted] Saved partial to ST memory "
