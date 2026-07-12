@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     status          TEXT NOT NULL DEFAULT 'open',
     title           TEXT,
     description     TEXT,
-    employee_id     TEXT,
+    user_id     TEXT,
     assigned_to     TEXT,
     resolution      TEXT,
     runbook_used    TEXT,

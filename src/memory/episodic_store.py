@@ -72,6 +72,7 @@ class EpisodicStore:
                 "resolved":                episode.get("resolved", False),
                 "resolution_time_minutes": episode.get("resolution_time_minutes"),
                 "turns":                   json.dumps(episode.get("turns", [])),
+                "user_id":             episode.get("user_id", ""),
                 "created_at":              datetime.now(timezone.utc).isoformat(),
             }, on_conflict="session_id").execute()
 
@@ -85,18 +86,20 @@ class EpisodicStore:
 
     async def get_similar_episodes(
         self,
-        ticket_type: int,
-        limit: int = 3,
-        resolved_only: bool = True,
+        ticket_type:  int,
+        limit:        int = 3,
+        resolved_only:bool = True,
+        user_id:  str = None,
     ) -> list[Episode]:
         """
         Retrieve past episodes matching the given ticket type.
-        L2 uses this for structured historical lookup.
+        Optionally filtered by user_id for user-specific context.
 
         Args:
             ticket_type:   Filter by ticket type 1-4.
             limit:         Max episodes to return (default 3).
             resolved_only: Only return resolved incidents (default True).
+            user_id:   If set, prefer episodes from this employee first.
 
         Returns:
             List of Episode dicts, most recent first.
@@ -104,13 +107,16 @@ class EpisodicStore:
         try:
             query = (
                 self._sb.table(TABLE)
-                .select("session_id, ticket_id, ticket_type, resolution, resolved, resolution_time_minutes, created_at")
+                .select("session_id, ticket_id, ticket_type, resolution, resolved, resolution_time_minutes, user_id, created_at")
                 .eq("ticket_type", ticket_type)
                 .order("created_at", desc=True)
                 .limit(limit)
             )
             if resolved_only:
                 query = query.eq("resolved", True)
+            # Filter by user_id if provided — user-specific history
+            if user_id:
+                query = query.eq("user_id", user_id)
 
             result = query.execute()
 

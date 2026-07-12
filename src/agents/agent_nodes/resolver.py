@@ -24,6 +24,21 @@ logger = logging.getLogger(__name__)
 tracer = get_tracer()
 
 
+async def _close_ticket_in_db(state: AgentState, resolution: str, runbook: str) -> None:
+    """Close ticket in Supabase with resolution text and runbook used."""
+    try:
+        from mcp_servers.ticketing_server import TicketingMCPClient
+        client = TicketingMCPClient()
+        await client.close_ticket(
+            ticket_id  = state["ticket_id"],
+            resolution = resolution,
+            runbook    = runbook,
+        )
+        logger.info("L3 closed ticket %s in Supabase", state["ticket_id"])
+    except Exception as exc:
+        logger.error("L3 failed to close ticket in Supabase: %s", exc)
+
+
 async def _execute_action_mcp(action_plan: str, ticket_type: int, severity: str) -> str:
     """
     Calls the Action MCP server to execute the proposed fix.
@@ -117,7 +132,6 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
                 )
 
             # ── 5. Final user-facing resolution ───────────────────────
-            # Clean and conversational — no internal labels shown to user
             final_resolution = user_message
 
             # ── 6. Update conversation history ────────────────────────
@@ -126,6 +140,13 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
                 "role":    "l3_resolver",
                 "content": final_resolution,
             })
+
+            # ── 7. Close ticket in Supabase via Ticketing MCP ─────────
+            await _close_ticket_in_db(
+                state        = state,
+                resolution   = final_resolution,
+                runbook      = runbook_source or "",
+            )
 
             logger.info(
                 "L3 resolved ticket %s using runbook: %s",

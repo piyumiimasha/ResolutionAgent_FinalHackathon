@@ -9,7 +9,7 @@ Exact transcript schema supported:
   "transcript_id": "TXN-00001",
   "ticket_type": "access_identity",
   "channel": "chat",
-  "employee_id": "EMP-0150",
+  "user_id": "EMP-0150",
   "agent_id": "EMP-0311",
   "user_tone": "slang",
   "agent_style": "professional",
@@ -56,7 +56,7 @@ class ParsedTranscript:
     ticket_type_str:         str     # raw e.g. "access_identity"
     ticket_type_int:         int     # mapped 1-4
     channel:                 str     # "chat" | "voice"
-    employee_id:             str
+    user_id:             str
     agent_id:                str
     user_tone:               str     # polite | rude | slang | technical
     agent_style:             str     # professional | dismissive | verbose
@@ -107,7 +107,7 @@ def _parse_raw(raw: dict) -> ParsedTranscript:
         ticket_type_str         = ticket_type_str,
         ticket_type_int         = ticket_type_int,
         channel                 = raw.get("channel", "chat"),
-        employee_id             = raw.get("employee_id", ""),
+        user_id             = raw.get("user_id", ""),
         agent_id                = raw.get("agent_id", ""),
         user_tone               = raw.get("user_tone", ""),
         agent_style             = raw.get("agent_style", ""),

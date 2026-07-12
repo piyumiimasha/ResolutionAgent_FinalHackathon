@@ -17,7 +17,7 @@ Supabase tickets table schema:
   status          TEXT                  -- open / in_progress / resolved / escalated
   title           TEXT
   description     TEXT
-  employee_id     TEXT
+  user_id     TEXT
   assigned_to     TEXT
   resolution      TEXT
   created_at      TIMESTAMPTZ
@@ -66,7 +66,7 @@ async def list_tools() -> list[Tool]:
                     "severity":    {"type": "string",  "description": "low | medium | critical"},
                     "title":       {"type": "string",  "description": "Short title for the ticket"},
                     "description": {"type": "string",  "description": "Full incident description"},
-                    "employee_id": {"type": "string",  "description": "Employee who raised the ticket"},
+                    "user_id": {"type": "string",  "description": "Employee who raised the ticket"},
                 },
                 "required": ["ticket_id", "ticket_type", "severity", "title", "description"],
             },
@@ -141,7 +141,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
                 "status":      "open",
                 "title":       arguments["title"],
                 "description": arguments["description"],
-                "employee_id": arguments.get("employee_id", ""),
+                "user_id": arguments.get("user_id", ""),
                 "created_at":  now,
                 "updated_at":  now,
             }
@@ -205,12 +205,12 @@ class TicketingMCPClient:
 
     async def create_ticket(self, ticket_id: str, ticket_type: int,
                              severity: str, title: str, description: str,
-                             employee_id: str = "") -> str:
+                             user_id: str = "") -> str:
         data = {
             "id": ticket_id, "ticket_type": ticket_type,
             "severity": severity, "status": "open",
             "title": title, "description": description,
-            "employee_id": employee_id,
+            "user_id": user_id,
             "created_at": self._now(), "updated_at": self._now(),
         }
         self._sb.table(TABLE).insert(data).execute()

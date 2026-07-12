@@ -27,7 +27,7 @@ async def list_tickets(
     try:
         sb    = get_supabase()
         query = sb.table("tickets").select(
-            "id, ticket_type, severity, status, title, employee_id, created_at, resolved_at",
+            "id, ticket_type, severity, status, title, user_id, created_at, resolved_at",
             count="exact",
         )
 

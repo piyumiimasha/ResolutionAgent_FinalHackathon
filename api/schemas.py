@@ -72,7 +72,7 @@ class TicketListItem(BaseModel):
     severity:    str
     status:      str
     title:       Optional[str] = None
-    employee_id: Optional[str] = None
+    user_id: Optional[str] = None
     created_at:  Optional[str] = None
     resolved_at: Optional[str] = None
 
