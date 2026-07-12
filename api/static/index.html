@@ -24,6 +24,9 @@
     --amber-bg:  #fffbeb;
     --blue:      #2563eb;
     --blue-bg:   #eff6ff;
+    --voice:     #7c3aed;
+    --voice-bg:  #f5f3ff;
+    --voice-dim: #c4b5fd;
     --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
     --font-ui:   'Inter', system-ui, -apple-system, sans-serif;
     --radius:    8px;
@@ -59,11 +62,7 @@
     z-index: 10;
   }
 
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
+  .logo { display: flex; align-items: center; gap: 12px; }
 
   .logo-badge {
     background: var(--red);
@@ -76,24 +75,10 @@
     border-radius: var(--radius-sm);
   }
 
-  .logo-name {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.01em;
-  }
+  .logo-name { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .logo-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
-  .logo-sub {
-    font-size: 11px;
-    color: var(--muted);
-    margin-top: 1px;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
+  .header-right { display: flex; align-items: center; gap: 20px; }
 
   .status-bar {
     display: flex;
@@ -104,23 +89,28 @@
     color: var(--muted);
   }
 
-  .status-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
+  .status-item { display: flex; align-items: center; gap: 5px; }
 
   .status-dot {
-    width: 7px;
-    height: 7px;
+    width: 7px; height: 7px;
     border-radius: 50%;
     background: #ccc;
     flex-shrink: 0;
   }
 
-  .status-dot.ok  { background: var(--green); box-shadow: 0 0 0 2px var(--green-bg); }
-  .status-dot.err { background: var(--red);   box-shadow: 0 0 0 2px var(--red-light); }
+  .status-dot.ok       { background: var(--green); box-shadow: 0 0 0 2px var(--green-bg); }
+  .status-dot.err      { background: var(--red);   box-shadow: 0 0 0 2px var(--red-light); }
   .status-dot.checking { background: var(--amber); }
+  .status-dot.voice-active {
+    background: var(--voice);
+    box-shadow: 0 0 0 2px var(--voice-bg);
+    animation: pulse-dot 1.5s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 2px var(--voice-bg); }
+    50%       { box-shadow: 0 0 0 4px var(--voice-dim); }
+  }
 
   .user-chip {
     background: var(--surface2);
@@ -136,8 +126,7 @@
   }
 
   .user-avatar {
-    width: 18px;
-    height: 18px;
+    width: 18px; height: 18px;
     border-radius: 50%;
     background: var(--red);
     color: #fff;
@@ -149,11 +138,7 @@
   }
 
   /* ── Layout ───────────────────────────────────────────────────── */
-  .layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
+  .layout { display: flex; flex: 1; overflow: hidden; }
 
   /* ── Sidebar ──────────────────────────────────────────────────── */
   .sidebar {
@@ -166,9 +151,7 @@
     overflow-y: auto;
   }
 
-  .sidebar-section {
-    padding: 14px 12px 6px;
-  }
+  .sidebar-section { padding: 14px 12px 6px; }
 
   .sidebar-label {
     font-size: 9px;
@@ -205,10 +188,7 @@
     box-shadow: var(--shadow);
   }
 
-  .quick-btn .btn-label {
-    font-weight: 500;
-    line-height: 1.3;
-  }
+  .quick-btn .btn-label { font-weight: 500; line-height: 1.3; }
 
   .tag {
     display: inline-flex;
@@ -226,11 +206,7 @@
   .tag-t3 { background: var(--amber-bg);  color: var(--amber); border: 1px solid #fde68a; }
   .tag-t4 { background: var(--red-light); color: var(--red);   border: 1px solid #fecaca; }
 
-  .sidebar-divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 8px 12px;
-  }
+  .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 8px 12px; }
 
   .setting-group {
     padding: 0 12px 10px;
@@ -239,12 +215,7 @@
     gap: 8px;
   }
 
-  .setting-label {
-    font-size: 10px;
-    color: var(--muted);
-    font-weight: 500;
-    margin-bottom: 3px;
-  }
+  .setting-label { font-size: 10px; color: var(--muted); font-weight: 500; margin-bottom: 3px; }
 
   .setting-input {
     width: 100%;
@@ -279,6 +250,116 @@
     border-color: var(--red-dim);
     color: var(--red);
   }
+
+  /* ── Thread banner ────────────────────────────────────────────── */
+  .thread-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--blue-bg);
+    border-bottom: 1px solid #bfdbfe;
+    padding: 6px 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--blue);
+    flex-shrink: 0;
+  }
+
+  .thread-banner.active { display: flex; }
+  .thread-id { font-weight: 700; }
+
+  .thread-end-btn {
+    background: none;
+    border: 1px solid #bfdbfe;
+    color: var(--blue);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: all 0.12s;
+  }
+
+  .thread-end-btn:hover { background: var(--blue); color: #fff; }
+
+  /* ── Voice banner ─────────────────────────────────────────────── */
+  .voice-banner {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--voice-bg);
+    border-bottom: 1px solid var(--voice-dim);
+    padding: 8px 20px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--voice);
+    flex-shrink: 0;
+  }
+
+  .voice-banner.active { display: flex; }
+
+  .voice-banner-left { display: flex; align-items: center; gap: 10px; }
+
+  .voice-orb {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--voice);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .voice-orb.listening {
+    animation: orb-pulse 2s ease-in-out infinite;
+  }
+
+  .voice-orb.speaking {
+    animation: orb-speak 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes orb-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+  }
+
+  @keyframes orb-speak {
+    from { transform: scale(0.92); }
+    to   { transform: scale(1.08); }
+  }
+
+  .voice-status-text { font-weight: 700; font-size: 11px; }
+  .voice-status-sub  { color: #a78bfa; font-size: 10px; }
+
+  .voice-latency-badge {
+    background: #ede9fe;
+    border: 1px solid var(--voice-dim);
+    border-radius: 3px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--voice);
+    font-family: var(--font-mono);
+  }
+
+  .voice-end-btn {
+    background: none;
+    border: 1px solid var(--voice-dim);
+    color: var(--voice);
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .voice-end-btn:hover { background: var(--voice); color: #fff; }
 
   /* ── Chat ─────────────────────────────────────────────────────── */
   .chat-area {
@@ -317,8 +398,7 @@
   }
 
   .empty-icon {
-    width: 56px;
-    height: 56px;
+    width: 56px; height: 56px;
     background: var(--red-light);
     border-radius: 50%;
     display: flex;
@@ -328,12 +408,7 @@
     margin-bottom: 8px;
   }
 
-  .empty-state h2 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
+  .empty-state h2 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
 
   .empty-state p {
     font-size: 13px;
@@ -362,11 +437,7 @@
     box-shadow: var(--shadow);
   }
 
-  .empty-hint:hover {
-    border-color: var(--red);
-    color: var(--red);
-    background: var(--red-light);
-  }
+  .empty-hint:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
 
   /* ── Messages ─────────────────────────────────────────────────── */
   .msg {
@@ -378,10 +449,10 @@
 
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0);   }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
-  .msg.user  { align-self: flex-end;   align-items: flex-end;   }
+  .msg.user  { align-self: flex-end;   align-items: flex-end; }
   .msg.agent { align-self: flex-start; align-items: flex-start; }
 
   .msg-meta {
@@ -418,7 +489,51 @@
     color: var(--text);
     border-bottom-left-radius: 2px;
     box-shadow: var(--shadow);
-    font-family: var(--font-ui);
+  }
+
+  .msg.agent.followup .msg-bubble {
+    border-left: 3px solid var(--blue);
+  }
+
+  /* Voice messages */
+  .msg.user.voice-msg .msg-bubble {
+    background: var(--voice);
+    border-bottom-right-radius: 2px;
+  }
+
+  .msg.agent.voice-msg .msg-bubble {
+    border-left: 3px solid var(--voice);
+    background: #ffffff;
+  }
+
+  .msg.agent.voice-interrupted .msg-bubble {
+    border-left: 3px solid var(--amber);
+    opacity: 0.8;
+  }
+
+  .voice-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--voice-bg);
+    color: var(--voice);
+    border: 1px solid var(--voice-dim);
+  }
+
+  .interrupted-tag {
+    font-size: 9px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: var(--amber-bg);
+    color: var(--amber);
+    border: 1px solid #fde68a;
   }
 
   /* ── Meta card ────────────────────────────────────────────────── */
@@ -435,6 +550,24 @@
     gap: 16px;
     align-items: center;
   }
+
+  .voice-latency-card {
+    margin-top: 8px;
+    background: var(--voice-bg);
+    border: 1px solid var(--voice-dim);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    color: var(--voice);
+  }
+
+  .voice-latency-card .lc-item { display: flex; flex-direction: column; gap: 1px; }
+  .voice-latency-card .lc-key  { font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; color: #a78bfa; }
+  .voice-latency-card .lc-val  { font-weight: 700; font-size: 11px; }
 
   .meta-item { display: flex; flex-direction: column; gap: 2px; }
   .meta-key  { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -475,8 +608,7 @@
   .thinking-dots { display: flex; gap: 3px; }
 
   .thinking-dots span {
-    width: 5px;
-    height: 5px;
+    width: 5px; height: 5px;
     background: var(--red);
     border-radius: 50%;
     animation: throb 1.2s infinite;
@@ -487,7 +619,7 @@
 
   @keyframes throb {
     0%, 80%, 100% { opacity: 0.2; transform: scale(0.75); }
-    40%            { opacity: 1;   transform: scale(1.0);  }
+    40%            { opacity: 1;   transform: scale(1.0); }
   }
 
   .thinking .stage { color: var(--red); font-weight: 700; }
@@ -501,11 +633,7 @@
     box-shadow: 0 -1px 0 var(--border);
   }
 
-  .input-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-  }
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
 
   .input-wrap {
     flex: 1;
@@ -522,6 +650,23 @@
     border-color: var(--red);
     box-shadow: 0 0 0 3px rgba(220,32,32,0.08);
     background: #fff;
+  }
+
+  .input-wrap.followup-mode {
+    border-color: var(--blue);
+  }
+
+  .input-wrap.followup-mode:focus-within {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+  }
+
+  /* Voice mode — input disabled */
+  .input-wrap.voice-mode {
+    border-color: var(--voice);
+    background: var(--voice-bg);
+    opacity: 0.6;
+    pointer-events: none;
   }
 
   #msg-input {
@@ -547,8 +692,7 @@
     color: #fff;
     border: none;
     border-radius: var(--radius);
-    width: 46px;
-    height: 46px;
+    width: 46px; height: 46px;
     cursor: pointer;
     font-size: 16px;
     display: flex;
@@ -567,6 +711,49 @@
 
   #send-btn:active:not(:disabled) { transform: translateY(0); }
   #send-btn:disabled { background: #f0a0a0; cursor: not-allowed; box-shadow: none; }
+
+  /* ── Voice button ─────────────────────────────────────────────── */
+  #voice-btn {
+    background: #fff;
+    color: var(--voice);
+    border: 1.5px solid var(--voice-dim);
+    border-radius: var(--radius);
+    width: 46px; height: 46px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+  }
+
+  #voice-btn:hover {
+    background: var(--voice-bg);
+    border-color: var(--voice);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(124,58,237,0.2);
+  }
+
+  #voice-btn.active {
+    background: var(--voice);
+    color: #fff;
+    border-color: var(--voice);
+    box-shadow: 0 4px 12px rgba(124,58,237,0.35);
+    animation: voice-btn-pulse 2s infinite;
+  }
+
+  @keyframes voice-btn-pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(124,58,237,0.35); }
+    50%       { box-shadow: 0 4px 20px rgba(124,58,237,0.6); }
+  }
+
+  #voice-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
 
   .input-hint {
     font-size: 10px;
@@ -623,6 +810,28 @@
   }
 
   .stat-val.highlight { color: var(--red); }
+  .stat-val.voice-highlight { color: var(--voice); }
+
+  /* ── Voice stats panel ────────────────────────────────────────── */
+  .voice-stats-panel {
+    background: var(--voice-bg);
+    border: 1px solid var(--voice-dim);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .voice-stats-panel .vs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+
+  .voice-stats-panel .vs-label { color: #a78bfa; }
+  .voice-stats-panel .vs-val   { color: var(--voice); font-weight: 700; }
 
   .log-entry {
     font-family: var(--font-mono);
@@ -635,14 +844,13 @@
   .log-entry:last-child { border-bottom: none; }
   .log-entry .log-time  { color: #bbb; }
   .log-entry .log-node  { color: var(--red); font-weight: 700; }
+  .log-entry .log-node.voice { color: var(--voice); }
   .log-entry .log-msg   { color: var(--text2); }
 
-  /* ── Scrollbar panel ──────────────────────────────────────────── */
   .panel::-webkit-scrollbar { width: 3px; }
   .panel::-webkit-scrollbar-track { background: transparent; }
   .panel::-webkit-scrollbar-thumb { background: var(--border); }
 
-  /* ── Error bubble ─────────────────────────────────────────────── */
   .msg.error .msg-bubble {
     background: var(--red-light);
     border: 1px solid var(--red-dim);
@@ -676,6 +884,10 @@
       <div class="status-item">
         <div class="status-dot checking" id="dot-sb"></div>
         <span>Supabase</span>
+      </div>
+      <div class="status-item" id="voice-status-item" style="display:none">
+        <div class="status-dot voice-active" id="dot-voice"></div>
+        <span>Voice</span>
       </div>
     </div>
     <div class="user-chip">
@@ -739,18 +951,43 @@
       <div>
         <div class="setting-label">API Base URL</div>
         <input class="setting-input" id="api-url-input" type="text" value="http://localhost:8000"/>
-      </div>
+      </div>      
       <button class="clear-btn" onclick="clearChat()">Clear conversation</button>
     </div>
   </aside>
 
-  <!-- Chat -->
+  <!-- Chat area -->
   <main class="chat-area">
+
+    <!-- Thread banner -->
+    <div class="thread-banner" id="thread-banner">
+      <span>
+        💬 Continuing thread &nbsp;
+        <span class="thread-id" id="thread-id-display"></span>
+      </span>
+      <button class="thread-end-btn" onclick="endThread()">New ticket</button>
+    </div>
+
+    <!-- Voice banner — shown during an active voice call -->
+    <div class="voice-banner" id="voice-banner">
+      <div class="voice-banner-left">
+        <div class="voice-orb listening" id="voice-orb">🎙️</div>
+        <div>
+          <div class="voice-status-text" id="voice-status-text">Listening...</div>
+          <div class="voice-status-sub" id="voice-status-sub">Speak your IT incident</div>
+        </div>
+        <div class="voice-latency-badge" id="voice-latency-badge" style="display:none">—</div>
+      </div>
+      <button class="voice-end-btn" onclick="endVoiceCall()">
+        ⏹ End call
+      </button>
+    </div>
+
     <div class="messages" id="messages">
       <div class="empty-state" id="empty-state">
         <div class="empty-icon">⚡</div>
         <h2>IT Support Swarm</h2>
-        <p>Report an IT incident or use a quick test from the sidebar. The swarm will triage, investigate, and resolve it automatically.</p>
+        <p>Report an IT incident via text or voice. The swarm will triage, investigate, and resolve it automatically.</p>
         <div class="empty-hints">
           <span class="empty-hint" onclick="sendQuick('How do I reset my VPN?')">VPN reset</span>
           <span class="empty-hint" onclick="sendQuick('Redis OOM on prod-cache-01')">Redis OOM</span>
@@ -762,17 +999,23 @@
 
     <div class="input-zone">
       <div class="input-row">
-        <div class="input-wrap">
+        <div class="input-wrap" id="input-wrap">
           <textarea id="msg-input"
             placeholder="Describe your IT incident..."
             onkeydown="handleKey(event)"
           ></textarea>
         </div>
+        <!-- Voice button -->
+        <button id="voice-btn" onclick="toggleVoice()" title="Start voice call (LiveKit)">
+          🎙️
+        </button>
         <button id="send-btn" onclick="sendMessage()" title="Send (Enter)">
           &#9658;
         </button>
       </div>
-      <div class="input-hint">Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line</div>
+      <div class="input-hint" id="input-hint">
+        Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line &nbsp;&middot;&nbsp; 🎙️ for voice
+      </div>
     </div>
   </main>
 
@@ -795,6 +1038,29 @@
       <div class="stat-row">
         <span class="stat-label">Avg latency</span>
         <span class="stat-val highlight" id="stat-latency">—</span>
+      </div>
+    </div>
+
+    <!-- Voice stats — only visible during/after voice call -->
+    <div class="panel-section" id="voice-stats-section" style="display:none">
+      <h3>Voice stats</h3>
+      <div class="voice-stats-panel">
+        <div class="vs-row">
+          <span class="vs-label">First token</span>
+          <span class="vs-val" id="vs-first-token">—</span>
+        </div>
+        <div class="vs-row">
+          <span class="vs-label">Agent total</span>
+          <span class="vs-val" id="vs-agent-total">—</span>
+        </div>
+        <div class="vs-row">
+          <span class="vs-label">Voice turns</span>
+          <span class="vs-val" id="vs-turns">0</span>
+        </div>
+        <div class="vs-row">
+          <span class="vs-label">Interruptions</span>
+          <span class="vs-val" id="vs-interruptions">0</span>
+        </div>
       </div>
     </div>
 
@@ -832,12 +1098,18 @@
 
 <script>
   // ── State ────────────────────────────────────────────────────────
-  let userId = 'EMP-0150';
-  let stats  = { total: 0, cache: 0, swarm: 0, latencies: [] };
+  let userId          = 'EMP-0150';
+  let currentTicketId = null;
+  let stats           = { total: 0, cache: 0, swarm: 0, latencies: [] };
 
-  function getApiUrl() {
-    return document.getElementById('api-url-input').value.replace(/\/$/, '');
-  }
+  // Voice state
+  let voiceActive     = false;
+  let voiceRoom       = null;   // LiveKit Room instance
+  let voiceTurns      = 0;
+  let voiceInterrupts = 0;
+
+  function getApiUrl()     { return document.getElementById('api-url-input').value.replace(/\/$/, ''); }
+  function getLiveKitUrl() { return document.getElementById('livekit-url-input').value.trim(); }
 
   function updateUserId(v) {
     userId = v || 'EMP-0150';
@@ -845,25 +1117,46 @@
     document.getElementById('user-avatar').textContent = userId.charAt(0).toUpperCase();
   }
 
-  // ── Keyboard ─────────────────────────────────────────────────────
+  // ── Thread management ─────────────────────────────────────────────
+  function setActiveThread(ticketId) {
+    currentTicketId = ticketId;
+    const banner = document.getElementById('thread-banner');
+    document.getElementById('thread-id-display').textContent = ticketId.slice(0, 8) + '...';
+    document.getElementById('input-wrap').classList.add('followup-mode');
+    document.getElementById('msg-input').placeholder = 'Reply to this ticket...';
+    document.getElementById('input-hint').textContent =
+      'Replying to ticket ' + ticketId.slice(0, 8) + ' · Enter to send · Shift+Enter for new line';
+    banner.classList.add('active');
+  }
+
+  function endThread() {
+    currentTicketId = null;
+    document.getElementById('thread-banner').classList.remove('active');
+    document.getElementById('input-wrap').classList.remove('followup-mode');
+    document.getElementById('msg-input').placeholder = 'Describe your IT incident...';
+    document.getElementById('input-hint').textContent =
+      'Enter to send · Shift+Enter for new line · 🎙️ for voice';
+    document.getElementById('msg-input').focus();
+  }
+
+  // ── Keyboard ──────────────────────────────────────────────────────
   function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
   function sendQuick(text) {
+    endThread();
     document.getElementById('msg-input').value = text;
     sendMessage();
   }
 
   function clearChat() {
+    endThread();
+    if (voiceActive) endVoiceCall();
     document.getElementById('messages').innerHTML =
       '<div class="empty-state" id="empty-state">' +
-      '<div class="empty-icon">⚡</div>' +
-      '<h2>IT Support Swarm</h2>' +
-      '<p>Report an IT incident or use a quick test from the sidebar.</p>' +
+      '<div class="empty-icon">⚡</div><h2>IT Support Swarm</h2>' +
+      '<p>Report an IT incident via text or voice.</p>' +
       '<div class="empty-hints">' +
       '<span class="empty-hint" onclick="sendQuick(\'How do I reset my VPN?\')">VPN reset</span>' +
       '<span class="empty-hint" onclick="sendQuick(\'Redis OOM on prod-cache-01\')">Redis OOM</span>' +
@@ -871,13 +1164,14 @@
     document.getElementById('agent-log').innerHTML =
       '<div style="color:#ccc;font-size:11px;font-family:var(--font-mono);padding:4px 0">No activity yet</div>';
     stats = { total: 0, cache: 0, swarm: 0, latencies: [] };
+    voiceTurns = 0; voiceInterrupts = 0;
     updateStats();
   }
 
-  // ── Send ─────────────────────────────────────────────────────────
+  // ── Send (text) ───────────────────────────────────────────────────
   async function sendMessage() {
-    const input = document.getElementById('msg-input');
-    const text  = input.value.trim();
+    const input   = document.getElementById('msg-input');
+    const text    = input.value.trim();
     if (!text) return;
 
     const sendBtn = document.getElementById('send-btn');
@@ -887,32 +1181,39 @@
     const es = document.getElementById('empty-state');
     if (es) es.remove();
 
-    appendMessage('user', text, null);
-    const thinkEl = appendThinking('Routing ticket through swarm...');
+    const isFollowUp = !!currentTicketId;
+    appendMessage('user', text, null, isFollowUp, false);
+    appendThinking(isFollowUp ? 'Processing follow-up...' : 'Routing ticket through swarm...');
     const t0 = Date.now();
 
     try {
+      const body = { message: text, user_id: userId };
+      if (currentTicketId) body.ticket_id = currentTicketId;
+
       const res = await fetch(getApiUrl() + '/chat', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ message: text, user_id: userId }),
+        body: JSON.stringify(body),
       });
 
       const latency = Date.now() - t0;
       removeThinking();
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error('HTTP ' + res.status + ': ' + err);
-      }
+      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
 
       const data = await res.json();
-      const resolution = data.resolution || data.cag_answer || 'No resolution returned.';
-      appendMessage('agent', resolution, data);
+      const resolution = (data.resolution || data.cag_answer || '').trim();
+      if (!resolution) {
+        appendError('No resolution returned. The swarm could not process this request.');
+        sendBtn.disabled = false;
+        return;
+      }
 
+      appendMessage('agent', resolution, data, isFollowUp, false);
+      if (data.ticket_id && !currentTicketId) setActiveThread(data.ticket_id);
       updateLastTicket(data);
       updateStatsFromResponse(data, latency);
-      addAgentLog(data);
+      addAgentLog(data, isFollowUp, false);
 
     } catch (err) {
       removeThinking();
@@ -920,14 +1221,240 @@
     }
 
     sendBtn.disabled = false;
-    input.focus();
+    document.getElementById('msg-input').focus();
   }
 
-  // ── DOM helpers ──────────────────────────────────────────────────
-  function appendMessage(role, text, data) {
+  // ── Voice ─────────────────────────────────────────────────────────
+  async function toggleVoice() {
+    if (voiceActive) { endVoiceCall(); return; }
+    await startVoiceCall();
+  }
+
+  async function startVoiceCall() {  
+
+    // Request a LiveKit token from the FastAPI backend
+    let token;
+    try {
+      const res = await fetch(getApiUrl() + '/voice/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, room: 'it-support-' + Date.now() }),
+      });
+      if (!res.ok) throw new Error('Token endpoint returned ' + res.status);
+      const data = await res.json();
+      token = data.token;
+      lkUrl   = data.url; 
+    } catch (err) {
+      appendError('Could not get voice token: ' + err.message + '. Make sure /voice/token is implemented in your FastAPI server.');
+      return;
+    }
+
+    // Load LiveKit client SDK dynamically
+    if (!window.LivekitClient) {
+      try {
+        await loadScript('https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js');
+      } catch {
+        appendError('Failed to load LiveKit client SDK. Check your internet connection.');
+        return;
+      }
+    }
+
+    try {
+      const room = new window.LivekitClient.Room({
+        adaptiveStream: true,
+        dynacast: true,
+      });
+      voiceRoom = room;
+
+      // ── LiveKit room events ──────────────────────────────────────
+      room.on('connected', () => {
+        setVoiceState('listening', 'Speak your incident');
+      });
+
+      room.on('disconnected', () => {
+        setVoiceState(null);
+      });
+
+      // Track state: when agent publishes audio → it's speaking
+      room.on('trackSubscribed', (track, pub, participant) => {
+        if (track.kind === 'audio' && participant.isAgent) {
+          track.on('audioPlaybackStarted', () => setVoiceState('speaking', 'Agent responding...'));
+          track.on('audioPlaybackFinished', () => setVoiceState('listening', 'Speak your incident'));
+        }
+      });
+
+      // Data channel — receives latency HUD updates from the agent
+      room.on('dataReceived', (payload, participant, kind, topic) => {
+        if (topic === 'latency') {
+          try {
+            const d = JSON.parse(new TextDecoder().decode(payload));
+            handleVoiceLatencyUpdate(d);
+          } catch {}
+        }
+      });
+
+      // Transcript events — agent publishes transcripts over data channel
+      room.on('dataReceived', (payload, participant, kind, topic) => {
+        if (topic === 'transcript') {
+          try {
+            const d = JSON.parse(new TextDecoder().decode(payload));
+            if (d.role === 'user')  appendVoiceUserMsg(d.text);
+            if (d.role === 'agent') appendVoiceAgentMsg(d.text, d.interrupted);
+          } catch {}
+        }
+      });
+
+      await room.connect(lkUrl, token);
+
+      // Publish microphone
+      await room.localParticipant.setMicrophoneEnabled(true);
+
+      voiceActive = true;
+      voiceTurns  = 0;
+      voiceInterrupts = 0;
+
+      document.getElementById('voice-btn').classList.add('active');
+      document.getElementById('voice-btn').title = 'End voice call';
+      document.getElementById('voice-banner').classList.add('active');
+      document.getElementById('voice-status-item').style.display = 'flex';
+      document.getElementById('voice-stats-section').style.display = 'block';
+      document.getElementById('input-wrap').classList.add('voice-mode');
+      document.getElementById('msg-input').disabled = true;
+      document.getElementById('send-btn').disabled = true;
+
+      const es = document.getElementById('empty-state');
+      if (es) es.remove();
+
+      appendVoiceSystemMsg('Voice call started — speak your IT incident');
+
+    } catch (err) {
+      appendError('Voice connection failed: ' + err.message);
+      voiceRoom = null;
+    }
+  }
+
+  async function endVoiceCall() {
+    if (voiceRoom) {
+      try { await voiceRoom.disconnect(); } catch {}
+      voiceRoom = null;
+    }
+    voiceActive = false;
+
+    document.getElementById('voice-btn').classList.remove('active');
+    document.getElementById('voice-btn').title = 'Start voice call (LiveKit)';
+    document.getElementById('voice-banner').classList.remove('active');
+    document.getElementById('voice-status-item').style.display = 'none';
+    document.getElementById('input-wrap').classList.remove('voice-mode');
+    document.getElementById('msg-input').disabled = false;
+    document.getElementById('send-btn').disabled = false;
+
+    appendVoiceSystemMsg('Voice call ended');
+    setVoiceState(null);
+  }
+
+  function setVoiceState(state, sub) {
+    const orb  = document.getElementById('voice-orb');
+    const text = document.getElementById('voice-status-text');
+    const subEl = document.getElementById('voice-status-sub');
+
+    orb.className = 'voice-orb';
+    if (state === 'listening') {
+      orb.classList.add('listening');
+      orb.textContent = '🎙️';
+      text.textContent = 'Listening...';
+      subEl.textContent = sub || 'Speak your IT incident';
+    } else if (state === 'speaking') {
+      orb.classList.add('speaking');
+      orb.textContent = '🔊';
+      text.textContent = 'Agent speaking';
+      subEl.textContent = sub || 'Barge in to interrupt';
+    } else {
+      orb.textContent = '🎙️';
+      text.textContent = 'Disconnected';
+      subEl.textContent = '';
+    }
+  }
+
+  function handleVoiceLatencyUpdate(d) {
+    // Update the voice banner badge
+    if (d.first_token_ms != null) {
+      const badge = document.getElementById('voice-latency-badge');
+      badge.style.display = 'block';
+      badge.textContent = d.first_token_ms + 'ms';
+    }
+    // Update voice stats panel
+    if (d.first_token_ms != null)
+      document.getElementById('vs-first-token').textContent = d.first_token_ms + 'ms';
+    if (d.agent_total_ms != null)
+      document.getElementById('vs-agent-total').textContent = d.agent_total_ms + 'ms';
+
+    voiceTurns++;
+    document.getElementById('vs-turns').textContent = voiceTurns;
+
+    // Sub-2s latency is the rubric target — colour code
+    const ftEl = document.getElementById('vs-first-token');
+    if (d.first_token_ms != null) {
+      ftEl.style.color = d.first_token_ms < 2000 ? 'var(--green)' : 'var(--amber)';
+    }
+  }
+
+  // ── Voice message helpers ──────────────────────────────────────────
+  function appendVoiceUserMsg(text) {
     const msgs = document.getElementById('messages');
     const div  = document.createElement('div');
-    div.className = 'msg ' + role;
+    div.className = 'msg user voice-msg';
+    div.innerHTML =
+      '<div class="msg-meta">' +
+        '<span style="color:var(--text2);font-weight:600">' + userId + '</span>' +
+        '<span>&middot;</span><span>' + nowTime() + '</span>' +
+        '<span class="voice-tag">🎙️ voice</span>' +
+      '</div>' +
+      '<div class="msg-bubble">' + escHtml(text) + '</div>';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function appendVoiceAgentMsg(text, interrupted) {
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.className = 'msg agent voice-msg' + (interrupted ? ' voice-interrupted' : '');
+
+    const interruptedTag = interrupted
+      ? '<span class="interrupted-tag">⚡ interrupted</span>' : '';
+
+    div.innerHTML =
+      '<div class="msg-meta">' +
+        '<span style="color:var(--voice);font-weight:700">🤖 AGENT</span>' +
+        '<span>&middot;</span><span>' + nowTime() + '</span>' +
+        '<span class="voice-tag">🔊 voice</span>' +
+        interruptedTag +
+      '</div>' +
+      '<div class="msg-bubble">' + escHtml(text) + '</div>';
+
+    if (interrupted) {
+      voiceInterrupts++;
+      document.getElementById('vs-interruptions').textContent = voiceInterrupts;
+    }
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    addVoiceAgentLog(interrupted);
+  }
+
+  function appendVoiceSystemMsg(text) {
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.style.cssText = 'text-align:center;font-size:10px;font-family:var(--font-mono);color:var(--voice);padding:4px 0;';
+    div.textContent = '— ' + text + ' —';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  // ── Text message DOM helpers ───────────────────────────────────────
+  function appendMessage(role, text, data, isFollowUp, isVoice) {
+    const msgs = document.getElementById('messages');
+    const div  = document.createElement('div');
+    div.className = 'msg ' + role + (isFollowUp ? ' followup' : '') + (isVoice ? ' voice-msg' : '');
 
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
@@ -935,12 +1462,14 @@
     if (role === 'user') {
       meta.innerHTML =
         '<span style="color:var(--text2);font-weight:600">' + userId + '</span>' +
-        '<span>&middot;</span><span>' + now() + '</span>';
+        '<span>&middot;</span><span>' + nowTime() + '</span>' +
+        (isFollowUp ? '<span style="color:var(--blue);font-size:9px">↩ follow-up</span>' : '');
     } else {
       const src = data && data.cag_hit
         ? '<span style="color:var(--blue);font-weight:700">⚡ CACHE</span>'
         : '<span style="color:var(--red);font-weight:700">SWARM</span>';
-      meta.innerHTML = src + '<span>&middot;</span><span>' + now() + '</span>';
+      meta.innerHTML = src + '<span>&middot;</span><span>' + nowTime() + '</span>' +
+        (isFollowUp ? '<span style="color:var(--blue);font-size:9px">↩ reply</span>' : '');
     }
 
     const bubble = document.createElement('div');
@@ -950,7 +1479,7 @@
     div.appendChild(meta);
     div.appendChild(bubble);
 
-    if (role === 'agent' && data) {
+    if (role === 'agent' && data && !isFollowUp) {
       const card = buildMetaCard(data);
       if (card) div.appendChild(card);
     }
@@ -962,7 +1491,6 @@
 
   function buildMetaCard(data) {
     if (!data.ticket_type && !data.severity && data.cag_hit === undefined) return null;
-
     const card = document.createElement('div');
     card.className = 'meta-card';
 
@@ -973,13 +1501,12 @@
       card.appendChild(item);
     };
 
-    if (data.ticket_id) addItem('Ticket ID', data.ticket_id.slice(0, 8) + '...');
+    if (data.ticket_id)   addItem('Ticket ID', data.ticket_id.slice(0, 8) + '...');
     if (data.ticket_type) addItem('Type', 'T' + data.ticket_type);
 
     if (data.severity) {
       const cls = data.severity === 'critical' ? 'sev-critical'
-                : data.severity === 'medium'   ? 'sev-medium'
-                : 'sev-low';
+                : data.severity === 'medium'   ? 'sev-medium' : 'sev-low';
       const item = document.createElement('div');
       item.className = 'meta-item';
       item.innerHTML = '<span class="meta-key">Severity</span>' +
@@ -995,10 +1522,7 @@
       (data.cag_hit ? 'HIT' : 'MISS') + '</span></span>';
     card.appendChild(cacheItem);
 
-    if (data.runbook_used) {
-      addItem('Runbook', data.runbook_used.replace('runbook-', '').replace('.md', ''));
-    }
-
+    if (data.runbook_used) addItem('Runbook', data.runbook_used.replace('runbook-', '').replace('.md', ''));
     return card;
   }
 
@@ -1009,11 +1533,9 @@
     div.id = 'thinking-indicator';
     div.innerHTML =
       '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
-      '<span><span class="stage">SWARM</span> &mdash; ' +
-      '<span id="thinking-label">' + label + '</span></span>';
+      '<span><span class="stage">SWARM</span> &mdash; <span id="thinking-label">' + label + '</span></span>';
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
-    return div;
   }
 
   function removeThinking() {
@@ -1027,21 +1549,19 @@
     div.className = 'msg error';
     div.innerHTML =
       '<div class="msg-meta"><span style="color:var(--red);font-weight:700">ERROR</span>' +
-      '<span>&middot;</span><span>' + now() + '</span></div>' +
-      '<div class="msg-bubble">' + msg + '</div>';
+      '<span>&middot;</span><span>' + nowTime() + '</span></div>' +
+      '<div class="msg-bubble">' + escHtml(msg) + '</div>';
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  // ── Panel updates ────────────────────────────────────────────────
+  // ── Panel updates ─────────────────────────────────────────────────
   function updateLastTicket(data) {
-    document.getElementById('last-type').textContent =
-      data.ticket_type ? 'Type ' + data.ticket_type : '—';
-    document.getElementById('last-sev').textContent  = data.severity    || '—';
-    document.getElementById('last-cache').textContent = data.cag_hit    ? 'YES ⚡' : 'NO';
+    document.getElementById('last-type').textContent    = data.ticket_type ? 'Type ' + data.ticket_type : '—';
+    document.getElementById('last-sev').textContent     = data.severity || '—';
+    document.getElementById('last-cache').textContent   = data.cag_hit ? 'YES ⚡' : 'NO';
     document.getElementById('last-runbook').textContent = data.runbook_used
-      ? data.runbook_used.replace('runbook-', '').replace('.md', '')
-      : '—';
+      ? data.runbook_used.replace('runbook-', '').replace('.md', '') : '—';
   }
 
   function updateStatsFromResponse(data, latency) {
@@ -1056,48 +1576,82 @@
     document.getElementById('stat-cache').textContent = stats.cache;
     document.getElementById('stat-swarm').textContent = stats.swarm;
     const avg = stats.latencies.length
-      ? Math.round(stats.latencies.reduce((a, b) => a + b, 0) / stats.latencies.length)
-      : null;
+      ? Math.round(stats.latencies.reduce((a, b) => a + b, 0) / stats.latencies.length) : null;
     document.getElementById('stat-latency').textContent = avg ? avg + 'ms' : '—';
   }
 
-  function addAgentLog(data) {
-    const log  = document.getElementById('agent-log');
-
-    // Remove placeholder
+  function addAgentLog(data, isFollowUp, isVoice) {
+    const log = document.getElementById('agent-log');
     const placeholder = log.querySelector('div[style]');
     if (placeholder) placeholder.remove();
 
     const type = data.ticket_type ? 'T' + data.ticket_type : '?';
     const sev  = data.severity ? data.severity.toUpperCase() : '?';
-    const src  = data.cag_hit ? 'CACHE' : 'SWARM';
+    const src  = isVoice ? 'VOICE' : isFollowUp ? 'REPLY' : (data.cag_hit ? 'CACHE' : 'SWARM');
+    const nodeClass = isVoice ? 'log-node voice' : 'log-node';
 
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     entry.innerHTML =
-      '<span class="log-time">' + now() + '</span> ' +
-      '<span class="log-node">[' + src + ']</span> ' +
+      '<span class="log-time">' + nowTime() + '</span> ' +
+      '<span class="' + nodeClass + '">[' + src + ']</span> ' +
       '<span class="log-msg">' + type + ' &middot; ' + sev + '</span>';
 
     log.insertBefore(entry, log.firstChild);
     while (log.children.length > 15) log.removeChild(log.lastChild);
   }
 
-  // ── Health check ─────────────────────────────────────────────────
+  function addVoiceAgentLog(interrupted) {
+    const log = document.getElementById('agent-log');
+    const placeholder = log.querySelector('div[style]');
+    if (placeholder) placeholder.remove();
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML =
+      '<span class="log-time">' + nowTime() + '</span> ' +
+      '<span class="log-node voice">[VOICE]</span> ' +
+      '<span class="log-msg">' + (interrupted ? '⚡ interrupted' : 'response sent') + '</span>';
+
+    log.insertBefore(entry, log.firstChild);
+    while (log.children.length > 15) log.removeChild(log.lastChild);
+  }
+
+  // ── Health check ──────────────────────────────────────────────────
   async function checkHealth() {
     try {
-      const res = await fetch(getApiUrl() + '/health', { signal: AbortSignal.timeout(4000) });
+      const res  = await fetch(getApiUrl() + '/health', { signal: AbortSignal.timeout(4000) });
+      const data = res.ok ? await res.json() : null;
       document.getElementById('dot-api').className = res.ok ? 'status-dot ok' : 'status-dot err';
+      if (data && data.services) {
+        const sb = data.services.find(s => s.name === 'supabase');
+        const qd = data.services.find(s => s.name === 'qdrant');
+        document.getElementById('dot-sb').className     = sb && sb.status === 'ok' ? 'status-dot ok' : 'status-dot err';
+        document.getElementById('dot-qdrant').className = qd && qd.status === 'ok' ? 'status-dot ok' : 'status-dot err';
+      }
     } catch {
       document.getElementById('dot-api').className = 'status-dot err';
     }
   }
 
-  function now() {
+  // ── Utils ─────────────────────────────────────────────────────────
+  function nowTime() {
     return new Date().toLocaleTimeString('en-US', { hour12: false });
   }
 
-  // ── Init ─────────────────────────────────────────────────────────
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
   checkHealth();
   setInterval(checkHealth, 30000);
   document.getElementById('msg-input').focus();

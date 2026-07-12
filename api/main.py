@@ -31,6 +31,7 @@ from src.infrastructure.db.supabase_client import check_connection as supabase_h
 from src.infrastructure.db.qdrant_client import check_connection as qdrant_health, ensure_collections
 from src.services.azure.blob_service_client  import check_connection as azure_health
 from api.routers import chat, tickets, health
+from api.routers.voice import router as voice_router
 
 
 @asynccontextmanager
@@ -116,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router,  prefix="/health",  tags=["Health"])
     app.include_router(chat.router,    prefix="/chat",    tags=["Chat"])
     app.include_router(tickets.router, prefix="/tickets", tags=["Tickets"])
+    app.include_router(voice_router)
 
     return app
 

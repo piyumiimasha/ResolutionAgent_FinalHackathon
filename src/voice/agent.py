@@ -36,7 +36,7 @@ from livekit.agents import AutoSubscribe, JobContext
 from livekit.agents.voice import Agent, AgentSession
 from livekit.plugins import silero
 
-from agents.orchestrator import AgentOrchestrator, build_agent
+from agents.orchastrator import AgentOrchestrator, build_agent
 from voice.adapter import LangGraphLLMAdapter
 from voice.config import VoiceConfig, load_voice_config
 from voice.pipeline import (
