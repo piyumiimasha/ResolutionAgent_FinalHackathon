@@ -6,888 +6,271 @@
 <title>IT Support Swarm — Zuu Crew AI</title>
 <style>
   :root {
-    --bg:        #ffffff;
-    --surface:   #f8f8f8;
-    --surface2:  #f0f0f0;
-    --border:    #e0e0e0;
-    --border2:   #d0d0d0;
-    --red:       #dc2020;
-    --red-hover: #b91c1c;
-    --red-light: #fef2f2;
-    --red-dim:   #fca5a5;
-    --text:      #111111;
-    --text2:     #444444;
-    --muted:     #888888;
-    --green:     #16a34a;
-    --green-bg:  #f0fdf4;
-    --amber:     #d97706;
-    --amber-bg:  #fffbeb;
-    --blue:      #2563eb;
-    --blue-bg:   #eff6ff;
-    --voice:     #7c3aed;
-    --voice-bg:  #f5f3ff;
-    --voice-dim: #c4b5fd;
-    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-    --font-ui:   'Inter', system-ui, -apple-system, sans-serif;
-    --radius:    8px;
-    --radius-sm: 4px;
-    --shadow:    0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-ui);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    font-size: 14px;
-  }
-
-  /* ── Header ───────────────────────────────────────────────────── */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    height: 54px;
-    border-bottom: 1px solid var(--border);
-    background: #ffffff;
-    flex-shrink: 0;
-    box-shadow: var(--shadow);
-    z-index: 10;
-  }
-
-  .logo { display: flex; align-items: center; gap: 12px; }
-
-  .logo-badge {
-    background: var(--red);
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-  }
-
-  .logo-name { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
-  .logo-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-
-  .header-right { display: flex; align-items: center; gap: 20px; }
-
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--muted);
-  }
-
-  .status-item { display: flex; align-items: center; gap: 5px; }
-
-  .status-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: #ccc;
-    flex-shrink: 0;
-  }
-
-  .status-dot.ok       { background: var(--green); box-shadow: 0 0 0 2px var(--green-bg); }
-  .status-dot.err      { background: var(--red);   box-shadow: 0 0 0 2px var(--red-light); }
-  .status-dot.checking { background: var(--amber); }
-  .status-dot.voice-active {
-    background: var(--voice);
-    box-shadow: 0 0 0 2px var(--voice-bg);
-    animation: pulse-dot 1.5s infinite;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { box-shadow: 0 0 0 2px var(--voice-bg); }
-    50%       { box-shadow: 0 0 0 4px var(--voice-dim); }
-  }
-
-  .user-chip {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 3px 10px 3px 6px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--text2);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .user-avatar {
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    background: var(--red);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* ── Layout ───────────────────────────────────────────────────── */
-  .layout { display: flex; flex: 1; overflow: hidden; }
-
-  /* ── Sidebar ──────────────────────────────────────────────────── */
-  .sidebar {
-    width: 210px;
-    border-right: 1px solid var(--border);
-    background: var(--surface);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow-y: auto;
-  }
-
-  .sidebar-section { padding: 14px 12px 6px; }
-
-  .sidebar-label {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 0 4px;
-    margin-bottom: 6px;
-  }
-
-  .quick-btn {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-    color: var(--text2);
-    font-family: var(--font-ui);
-    font-size: 12px;
-    padding: 7px 10px;
-    cursor: pointer;
-    transition: all 0.12s;
-    margin-bottom: 2px;
-  }
-
-  .quick-btn:hover {
-    background: #fff;
-    border-color: var(--border);
-    color: var(--text);
-    box-shadow: var(--shadow);
-  }
-
-  .quick-btn .btn-label { font-weight: 500; line-height: 1.3; }
-
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    font-size: 9px;
-    font-family: var(--font-mono);
-    padding: 1px 6px;
-    border-radius: 3px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-
-  .tag-t1 { background: var(--green-bg);  color: var(--green); border: 1px solid #bbf7d0; }
-  .tag-t2 { background: var(--blue-bg);   color: var(--blue);  border: 1px solid #bfdbfe; }
-  .tag-t3 { background: var(--amber-bg);  color: var(--amber); border: 1px solid #fde68a; }
-  .tag-t4 { background: var(--red-light); color: var(--red);   border: 1px solid #fecaca; }
-
-  .sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 8px 12px; }
-
-  .setting-group {
-    padding: 0 12px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .setting-label { font-size: 10px; color: var(--muted); font-weight: 500; margin-bottom: 3px; }
-
-  .setting-input {
-    width: 100%;
-    background: #fff;
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 6px 8px;
-    border-radius: var(--radius-sm);
-    outline: none;
-    transition: border-color 0.12s;
-  }
-
-  .setting-input:focus { border-color: var(--red); }
-
-  .clear-btn {
-    width: 100%;
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-size: 11px;
-    padding: 6px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-family: var(--font-ui);
-    transition: all 0.12s;
-  }
-
-  .clear-btn:hover {
-    background: var(--red-light);
-    border-color: var(--red-dim);
-    color: var(--red);
-  }
-
-  /* ── Thread banner ────────────────────────────────────────────── */
-  .thread-banner {
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--blue-bg);
-    border-bottom: 1px solid #bfdbfe;
-    padding: 6px 20px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--blue);
-    flex-shrink: 0;
-  }
-
-  .thread-banner.active { display: flex; }
-  .thread-id { font-weight: 700; }
-
-  .thread-end-btn {
-    background: none;
-    border: 1px solid #bfdbfe;
-    color: var(--blue);
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    transition: all 0.12s;
-  }
-
-  .thread-end-btn:hover { background: var(--blue); color: #fff; }
-
-  /* ── Voice banner ─────────────────────────────────────────────── */
-  .voice-banner {
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--voice-bg);
-    border-bottom: 1px solid var(--voice-dim);
-    padding: 8px 20px;
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--voice);
-    flex-shrink: 0;
-  }
-
-  .voice-banner.active { display: flex; }
-
-  .voice-banner-left { display: flex; align-items: center; gap: 10px; }
-
-  .voice-orb {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: var(--voice);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  .voice-orb.listening {
-    animation: orb-pulse 2s ease-in-out infinite;
-  }
-
-  .voice-orb.speaking {
-    animation: orb-speak 0.6s ease-in-out infinite alternate;
-  }
-
-  @keyframes orb-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
-    50%       { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
-  }
-
-  @keyframes orb-speak {
-    from { transform: scale(0.92); }
-    to   { transform: scale(1.08); }
-  }
-
-  .voice-status-text { font-weight: 700; font-size: 11px; }
-  .voice-status-sub  { color: #a78bfa; font-size: 10px; }
-
-  .voice-latency-badge {
-    background: #ede9fe;
-    border: 1px solid var(--voice-dim);
-    border-radius: 3px;
-    padding: 2px 7px;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--voice);
-    font-family: var(--font-mono);
-  }
-
-  .voice-end-btn {
-    background: none;
-    border: 1px solid var(--voice-dim);
-    color: var(--voice);
-    font-size: 10px;
-    padding: 4px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    transition: all 0.12s;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  .voice-end-btn:hover { background: var(--voice); color: #fff; }
-
-  /* ── Chat ─────────────────────────────────────────────────────── */
-  .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #fafafa;
-  }
-
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px 28px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    scroll-behavior: smooth;
-  }
-
-  .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-track { background: transparent; }
-  .messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-
-  /* ── Empty state ──────────────────────────────────────────────── */
-  .empty-state {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: var(--muted);
-    text-align: center;
-    padding: 60px 40px;
-  }
-
-  .empty-icon {
-    width: 56px; height: 56px;
-    background: var(--red-light);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    margin-bottom: 8px;
-  }
-
-  .empty-state h2 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
-
-  .empty-state p {
-    font-size: 13px;
-    max-width: 360px;
-    line-height: 1.65;
-    color: var(--text2);
-  }
-
-  .empty-hints {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .empty-hint {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 11px;
-    color: var(--text2);
-    cursor: pointer;
-    transition: all 0.12s;
-    box-shadow: var(--shadow);
-  }
-
-  .empty-hint:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }
-
-  /* ── Messages ─────────────────────────────────────────────────── */
-  .msg {
-    display: flex;
-    flex-direction: column;
-    max-width: 820px;
-    animation: fadeUp 0.18s ease;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  .msg.user  { align-self: flex-end;   align-items: flex-end; }
-  .msg.agent { align-self: flex-start; align-items: flex-start; }
-
-  .msg-meta {
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: var(--muted);
-    margin-bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .msg-bubble {
-    padding: 14px 18px;
-    border-radius: var(--radius);
-    font-size: 13.5px;
-    line-height: 1.72;
-    max-width: 100%;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .msg.user .msg-bubble {
-    background: var(--red);
-    color: #fff;
-    border-bottom-right-radius: 2px;
-    box-shadow: var(--shadow-md);
-    font-weight: 450;
-  }
-
-  .msg.agent .msg-bubble {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-bottom-left-radius: 2px;
-    box-shadow: var(--shadow);
-  }
-
-  .msg.agent.followup .msg-bubble {
-    border-left: 3px solid var(--blue);
-  }
-
-  /* Voice messages */
-  .msg.user.voice-msg .msg-bubble {
-    background: var(--voice);
-    border-bottom-right-radius: 2px;
-  }
-
-  .msg.agent.voice-msg .msg-bubble {
-    border-left: 3px solid var(--voice);
-    background: #ffffff;
-  }
-
-  .msg.agent.voice-interrupted .msg-bubble {
-    border-left: 3px solid var(--amber);
-    opacity: 0.8;
-  }
-
-  .voice-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 9px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: var(--voice-bg);
-    color: var(--voice);
-    border: 1px solid var(--voice-dim);
-  }
-
-  .interrupted-tag {
-    font-size: 9px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: var(--amber-bg);
-    color: var(--amber);
-    border: 1px solid #fde68a;
-  }
-
-  /* ── Meta card ────────────────────────────────────────────────── */
-  .meta-card {
-    margin-top: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .voice-latency-card {
-    margin-top: 8px;
-    background: var(--voice-bg);
-    border: 1px solid var(--voice-dim);
-    border-radius: var(--radius-sm);
-    padding: 8px 14px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    display: flex;
-    gap: 16px;
-    align-items: center;
-    color: var(--voice);
-  }
-
-  .voice-latency-card .lc-item { display: flex; flex-direction: column; gap: 1px; }
-  .voice-latency-card .lc-key  { font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; color: #a78bfa; }
-  .voice-latency-card .lc-val  { font-weight: 700; font-size: 11px; }
-
-  .meta-item { display: flex; flex-direction: column; gap: 2px; }
-  .meta-key  { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .meta-val  { color: var(--text);  font-weight: 600; font-size: 11px; }
-
-  .sev-badge {
-    display: inline-block;
-    font-size: 10px;
-    font-family: var(--font-mono);
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-  }
-
-  .sev-critical { background: var(--red-light);  color: var(--red);   border: 1px solid #fecaca; }
-  .sev-medium   { background: var(--amber-bg);   color: var(--amber); border: 1px solid #fde68a; }
-  .sev-low      { background: var(--green-bg);   color: var(--green); border: 1px solid #bbf7d0; }
-  .sev-hit      { background: var(--blue-bg);    color: var(--blue);  border: 1px solid #bfdbfe; }
-
-  /* ── Thinking ─────────────────────────────────────────────────── */
-  .thinking {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    border-bottom-left-radius: 2px;
-    font-size: 12px;
-    color: var(--muted);
-    align-self: flex-start;
-    box-shadow: var(--shadow);
-    font-family: var(--font-mono);
-  }
-
-  .thinking-dots { display: flex; gap: 3px; }
-
-  .thinking-dots span {
-    width: 5px; height: 5px;
-    background: var(--red);
-    border-radius: 50%;
-    animation: throb 1.2s infinite;
-  }
-
-  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes throb {
-    0%, 80%, 100% { opacity: 0.2; transform: scale(0.75); }
-    40%            { opacity: 1;   transform: scale(1.0); }
-  }
-
-  .thinking .stage { color: var(--red); font-weight: 700; }
-
-  /* ── Input bar ────────────────────────────────────────────────── */
-  .input-zone {
-    border-top: 1px solid var(--border);
-    background: #fff;
-    padding: 14px 20px 10px;
-    flex-shrink: 0;
-    box-shadow: 0 -1px 0 var(--border);
-  }
-
-  .input-row { display: flex; gap: 10px; align-items: flex-end; }
-
-  .input-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    transition: border-color 0.15s, box-shadow 0.15s;
-    padding: 2px 14px;
-  }
-
-  .input-wrap:focus-within {
-    border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(220,32,32,0.08);
-    background: #fff;
-  }
-
-  .input-wrap.followup-mode {
-    border-color: var(--blue);
-  }
-
-  .input-wrap.followup-mode:focus-within {
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
-  }
-
-  /* Voice mode — input disabled */
-  .input-wrap.voice-mode {
-    border-color: var(--voice);
-    background: var(--voice-bg);
-    opacity: 0.6;
-    pointer-events: none;
-  }
-
-  #msg-input {
-    flex: 1;
-    background: none;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-size: 13.5px;
-    padding: 11px 0;
-    resize: none;
-    height: 46px;
-    max-height: 130px;
-    overflow-y: auto;
-    line-height: 1.5;
-  }
-
-  #msg-input::placeholder { color: #bbb; }
-
-  #send-btn {
-    background: var(--red);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius);
-    width: 46px; height: 46px;
-    cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.12s;
-    flex-shrink: 0;
-    box-shadow: var(--shadow-md);
-  }
-
-  #send-btn:hover:not(:disabled) {
-    background: var(--red-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(220,32,32,0.25);
-  }
-
-  #send-btn:active:not(:disabled) { transform: translateY(0); }
-  #send-btn:disabled { background: #f0a0a0; cursor: not-allowed; box-shadow: none; }
-
-  /* ── Voice button ─────────────────────────────────────────────── */
-  #voice-btn {
-    background: #fff;
-    color: var(--voice);
-    border: 1.5px solid var(--voice-dim);
-    border-radius: var(--radius);
-    width: 46px; height: 46px;
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-    flex-shrink: 0;
-    box-shadow: var(--shadow);
-  }
-
-  #voice-btn:hover {
-    background: var(--voice-bg);
-    border-color: var(--voice);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(124,58,237,0.2);
-  }
-
-  #voice-btn.active {
-    background: var(--voice);
-    color: #fff;
-    border-color: var(--voice);
-    box-shadow: 0 4px 12px rgba(124,58,237,0.35);
-    animation: voice-btn-pulse 2s infinite;
-  }
-
-  @keyframes voice-btn-pulse {
-    0%, 100% { box-shadow: 0 4px 12px rgba(124,58,237,0.35); }
-    50%       { box-shadow: 0 4px 20px rgba(124,58,237,0.6); }
-  }
-
-  #voice-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .input-hint {
-    font-size: 10px;
-    font-family: var(--font-mono);
-    color: #ccc;
-    margin-top: 7px;
-    text-align: center;
-    letter-spacing: 0.02em;
-  }
-
-  /* ── Right panel ──────────────────────────────────────────────── */
-  .panel {
-    width: 240px;
-    border-left: 1px solid var(--border);
-    background: var(--surface);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow-y: auto;
-  }
-
-  .panel-section {
-    padding: 14px 14px 10px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .panel-section:last-child { border-bottom: none; }
-
-  .panel-section h3 {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 10px;
-  }
-
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    border-bottom: 1px solid #ebebeb;
-  }
-
-  .stat-row:last-child { border-bottom: none; }
-  .stat-label { color: var(--muted); font-size: 11px; }
-
-  .stat-val {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--text);
-  }
-
-  .stat-val.highlight { color: var(--red); }
-  .stat-val.voice-highlight { color: var(--voice); }
-
-  /* ── Voice stats panel ────────────────────────────────────────── */
-  .voice-stats-panel {
-    background: var(--voice-bg);
-    border: 1px solid var(--voice-dim);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    margin-bottom: 10px;
-  }
-
-  .voice-stats-panel .vs-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    font-size: 11px;
-    font-family: var(--font-mono);
-  }
-
-  .voice-stats-panel .vs-label { color: #a78bfa; }
-  .voice-stats-panel .vs-val   { color: var(--voice); font-weight: 700; }
-
-  .log-entry {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 5px 0;
-    border-bottom: 1px solid #ebebeb;
-    line-height: 1.5;
-  }
-
-  .log-entry:last-child { border-bottom: none; }
-  .log-entry .log-time  { color: #bbb; }
-  .log-entry .log-node  { color: var(--red); font-weight: 700; }
-  .log-entry .log-node.voice { color: var(--voice); }
-  .log-entry .log-msg   { color: var(--text2); }
-
-  .panel::-webkit-scrollbar { width: 3px; }
-  .panel::-webkit-scrollbar-track { background: transparent; }
-  .panel::-webkit-scrollbar-thumb { background: var(--border); }
-
-  .msg.error .msg-bubble {
-    background: var(--red-light);
-    border: 1px solid var(--red-dim);
-    color: var(--red);
-    font-family: var(--font-mono);
-    font-size: 12px;
-  }
+    --bg:#ffffff;--surface:#f8f8f8;--surface2:#f0f0f0;--border:#e0e0e0;--border2:#d0d0d0;
+    --red:#dc2020;--red-hover:#b91c1c;--red-light:#fef2f2;--red-dim:#fca5a5;
+    --text:#111111;--text2:#444444;--muted:#888888;
+    --green:#16a34a;--green-bg:#f0fdf4;--amber:#d97706;--amber-bg:#fffbeb;
+    --blue:#2563eb;--blue-bg:#eff6ff;
+    --voice:#7c3aed;--voice-bg:#f5f3ff;--voice-dim:#c4b5fd;
+    --font-mono:'JetBrains Mono','Fira Code','Courier New',monospace;
+    --font-ui:'Inter',system-ui,-apple-system,sans-serif;
+    --radius:8px;--radius-sm:4px;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.05);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-ui);
+    height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px}
+
+  /* ── Header ── */
+  header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+    height:54px;border-bottom:1px solid var(--border);background:#fff;
+    flex-shrink:0;box-shadow:var(--shadow);z-index:10}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-badge{background:var(--red);color:#fff;font-family:var(--font-mono);font-size:10px;
+    font-weight:700;letter-spacing:.1em;padding:4px 8px;border-radius:var(--radius-sm)}
+  .logo-name{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.01em}
+  .logo-sub{font-size:11px;color:var(--muted);margin-top:1px}
+  .header-right{display:flex;align-items:center;gap:20px}
+  .status-bar{display:flex;align-items:center;gap:12px;font-size:11px;
+    font-family:var(--font-mono);color:var(--muted)}
+  .status-item{display:flex;align-items:center;gap:5px}
+  .status-dot{width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0}
+  .status-dot.ok{background:var(--green);box-shadow:0 0 0 2px var(--green-bg)}
+  .status-dot.err{background:var(--red);box-shadow:0 0 0 2px var(--red-light)}
+  .status-dot.checking{background:var(--amber)}
+  .status-dot.voice-on{background:var(--voice);box-shadow:0 0 0 2px var(--voice-bg);
+    animation:pdot 1.5s infinite}
+  @keyframes pdot{0%,100%{box-shadow:0 0 0 2px var(--voice-bg)}50%{box-shadow:0 0 0 4px var(--voice-dim)}}
+  .user-chip{background:var(--surface2);border:1px solid var(--border);border-radius:20px;
+    padding:3px 10px 3px 6px;font-size:11px;font-family:var(--font-mono);color:var(--text2);
+    display:flex;align-items:center;gap:6px}
+  .user-avatar{width:18px;height:18px;border-radius:50%;background:var(--red);color:#fff;
+    font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+  /* ── Layout ── */
+  .layout{display:flex;flex:1;overflow:hidden}
+
+  /* ── Sidebar ── */
+  .sidebar{width:210px;border-right:1px solid var(--border);background:var(--surface);
+    display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+  .sidebar-section{padding:14px 12px 6px}
+  .sidebar-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);padding:0 4px;margin-bottom:6px}
+  .quick-btn{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;
+    background:none;border:1px solid transparent;border-radius:var(--radius-sm);
+    color:var(--text2);font-family:var(--font-ui);font-size:12px;padding:7px 10px;
+    cursor:pointer;transition:all .12s;margin-bottom:2px}
+  .quick-btn:hover{background:#fff;border-color:var(--border);color:var(--text);box-shadow:var(--shadow)}
+  .quick-btn .btn-label{font-weight:500;line-height:1.3}
+  .tag{display:inline-flex;align-items:center;font-size:9px;font-family:var(--font-mono);
+    padding:1px 6px;border-radius:3px;font-weight:700;letter-spacing:.05em}
+  .tag-t1{background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0}
+  .tag-t2{background:var(--blue-bg);color:var(--blue);border:1px solid #bfdbfe}
+  .tag-t3{background:var(--amber-bg);color:var(--amber);border:1px solid #fde68a}
+  .tag-t4{background:var(--red-light);color:var(--red);border:1px solid #fecaca}
+  .sidebar-divider{border:none;border-top:1px solid var(--border);margin:8px 12px}
+  .setting-group{padding:0 12px 10px;display:flex;flex-direction:column;gap:8px}
+  .setting-label{font-size:10px;color:var(--muted);font-weight:500;margin-bottom:3px}
+  .setting-input{width:100%;background:#fff;border:1px solid var(--border);color:var(--text);
+    font-family:var(--font-mono);font-size:11px;padding:6px 8px;border-radius:var(--radius-sm);
+    outline:none;transition:border-color .12s}
+  .setting-input:focus{border-color:var(--red)}
+  .clear-btn{width:100%;background:none;border:1px solid var(--border);color:var(--muted);
+    font-size:11px;padding:6px;border-radius:var(--radius-sm);cursor:pointer;
+    font-family:var(--font-ui);transition:all .12s}
+  .clear-btn:hover{background:var(--red-light);border-color:var(--red-dim);color:var(--red)}
+
+  /* ── Thread banner ── */
+  .thread-banner{display:none;align-items:center;justify-content:space-between;
+    background:var(--blue-bg);border-bottom:1px solid #bfdbfe;padding:6px 20px;
+    font-size:11px;font-family:var(--font-mono);color:var(--blue);flex-shrink:0}
+  .thread-banner.active{display:flex}
+  .thread-id{font-weight:700}
+  .thread-end-btn{background:none;border:1px solid #bfdbfe;color:var(--blue);font-size:10px;
+    padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--font-mono);transition:all .12s}
+  .thread-end-btn:hover{background:var(--blue);color:#fff}
+
+  /* ── Voice banner ── */
+  .voice-banner{display:none;align-items:center;justify-content:space-between;
+    background:var(--voice-bg);border-bottom:1px solid var(--voice-dim);padding:8px 20px;
+    font-size:11px;font-family:var(--font-mono);color:var(--voice);flex-shrink:0}
+  .voice-banner.active{display:flex}
+  .vb-left{display:flex;align-items:center;gap:10px}
+  .vorb{width:28px;height:28px;border-radius:50%;background:var(--voice);
+    display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .vorb.listening{animation:vorbp 2s ease-in-out infinite}
+  .vorb.speaking{animation:vorbs .6s ease-in-out infinite alternate}
+  @keyframes vorbp{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.4)}50%{box-shadow:0 0 0 8px rgba(124,58,237,0)}}
+  @keyframes vorbs{from{transform:scale(.92)}to{transform:scale(1.08)}}
+  .vb-title{font-weight:700;font-size:11px}
+  .vb-sub{color:#a78bfa;font-size:10px}
+  .vb-latency{background:#ede9fe;border:1px solid var(--voice-dim);border-radius:3px;
+    padding:2px 7px;font-size:10px;font-weight:700;color:var(--voice);font-family:var(--font-mono)}
+  .vb-end{background:none;border:1px solid var(--voice-dim);color:var(--voice);font-size:10px;
+    padding:4px 10px;border-radius:3px;cursor:pointer;font-family:var(--font-mono);
+    font-weight:700;transition:all .12s}
+  .vb-end:hover{background:var(--voice);color:#fff}
+
+  /* ── Chat area ── */
+  .chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fafafa}
+  .messages{flex:1;overflow-y:auto;padding:28px 28px 12px;display:flex;flex-direction:column;
+    gap:20px;scroll-behavior:smooth}
+  .messages::-webkit-scrollbar{width:4px}
+  .messages::-webkit-scrollbar-track{background:transparent}
+  .messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+  /* ── Empty state ── */
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:10px;color:var(--muted);text-align:center;padding:60px 40px}
+  .empty-icon{width:56px;height:56px;background:var(--red-light);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:8px}
+  .empty-state h2{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+  .empty-state p{font-size:13px;max-width:360px;line-height:1.65;color:var(--text2)}
+  .empty-hints{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+  .empty-hint{background:#fff;border:1px solid var(--border);border-radius:20px;padding:5px 12px;
+    font-size:11px;color:var(--text2);cursor:pointer;transition:all .12s;box-shadow:var(--shadow)}
+  .empty-hint:hover{border-color:var(--red);color:var(--red);background:var(--red-light)}
+
+  /* ── Messages ── */
+  .msg{display:flex;flex-direction:column;max-width:820px;animation:fadeUp .18s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .msg.user{align-self:flex-end;align-items:flex-end}
+  .msg.agent{align-self:flex-start;align-items:flex-start}
+  .msg-meta{font-size:10px;font-family:var(--font-mono);color:var(--muted);
+    margin-bottom:5px;display:flex;align-items:center;gap:6px}
+  .msg-bubble{padding:14px 18px;border-radius:var(--radius);font-size:13.5px;line-height:1.72;
+    max-width:100%;white-space:pre-wrap;word-break:break-word}
+  .msg.user .msg-bubble{background:var(--red);color:#fff;border-bottom-right-radius:2px;
+    box-shadow:var(--shadow-md);font-weight:450}
+  .msg.agent .msg-bubble{background:#fff;border:1px solid var(--border);color:var(--text);
+    border-bottom-left-radius:2px;box-shadow:var(--shadow)}
+  .msg.agent.followup .msg-bubble{border-left:3px solid var(--blue)}
+  .msg.user.vm .msg-bubble{background:var(--voice)}
+  .msg.agent.vm .msg-bubble{border-left:3px solid var(--voice)}
+  .msg.agent.vi .msg-bubble{border-left:3px solid var(--amber);opacity:.82}
+  .vtag{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:var(--font-mono);
+    font-weight:700;padding:1px 6px;border-radius:3px;background:var(--voice-bg);
+    color:var(--voice);border:1px solid var(--voice-dim)}
+  .itag{font-size:9px;font-family:var(--font-mono);font-weight:700;padding:1px 6px;
+    border-radius:3px;background:var(--amber-bg);color:var(--amber);border:1px solid #fde68a}
+  .sys-msg{text-align:center;font-size:10px;font-family:var(--font-mono);
+    color:var(--voice);padding:4px 0;opacity:.75}
+
+  /* ── Meta card ── */
+  .meta-card{margin-top:8px;background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:10px 14px;font-family:var(--font-mono);
+    font-size:11px;display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+  .mi{display:flex;flex-direction:column;gap:2px}
+  .mk{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+  .mv{color:var(--text);font-weight:600;font-size:11px}
+  .sev{display:inline-block;font-size:10px;font-family:var(--font-mono);font-weight:700;
+    padding:2px 7px;border-radius:3px;letter-spacing:.04em}
+  .sc{background:var(--red-light);color:var(--red);border:1px solid #fecaca}
+  .sm{background:var(--amber-bg);color:var(--amber);border:1px solid #fde68a}
+  .sl{background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0}
+  .sh{background:var(--blue-bg);color:var(--blue);border:1px solid #bfdbfe}
+
+  /* ── Thinking ── */
+  .thinking{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;
+    border:1px solid var(--border);border-radius:var(--radius);border-bottom-left-radius:2px;
+    font-size:12px;color:var(--muted);align-self:flex-start;box-shadow:var(--shadow);
+    font-family:var(--font-mono)}
+  .thinking-dots{display:flex;gap:3px}
+  .thinking-dots span{width:5px;height:5px;background:var(--red);border-radius:50%;
+    animation:throb 1.2s infinite}
+  .thinking-dots span:nth-child(2){animation-delay:.2s}
+  .thinking-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes throb{0%,80%,100%{opacity:.2;transform:scale(.75)}40%{opacity:1;transform:scale(1)}}
+  .thinking .stage{color:var(--red);font-weight:700}
+
+  /* ── Input ── */
+  .input-zone{border-top:1px solid var(--border);background:#fff;padding:14px 20px 10px;
+    flex-shrink:0;box-shadow:0 -1px 0 var(--border)}
+  .input-row{display:flex;gap:10px;align-items:flex-end}
+  .input-wrap{flex:1;display:flex;align-items:center;background:var(--surface);
+    border:1.5px solid var(--border);border-radius:var(--radius);
+    transition:border-color .15s,box-shadow .15s;padding:2px 14px}
+  .input-wrap:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(220,32,32,.08);background:#fff}
+  .input-wrap.fm{border-color:var(--blue)}
+  .input-wrap.fm:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+  .input-wrap.vm{border-color:var(--voice);background:var(--voice-bg);opacity:.55;pointer-events:none}
+  #msg-input{flex:1;background:none;border:none;outline:none;color:var(--text);
+    font-family:var(--font-ui);font-size:13.5px;padding:11px 0;resize:none;
+    height:46px;max-height:130px;overflow-y:auto;line-height:1.5}
+  #msg-input::placeholder{color:#bbb}
+  #send-btn{background:var(--red);color:#fff;border:none;border-radius:var(--radius);
+    width:46px;height:46px;cursor:pointer;font-size:16px;display:flex;align-items:center;
+    justify-content:center;transition:all .12s;flex-shrink:0;box-shadow:var(--shadow-md)}
+  #send-btn:hover:not(:disabled){background:var(--red-hover);transform:translateY(-1px);
+    box-shadow:0 4px 8px rgba(220,32,32,.25)}
+  #send-btn:active:not(:disabled){transform:translateY(0)}
+  #send-btn:disabled{background:#f0a0a0;cursor:not-allowed;box-shadow:none}
+  #voice-btn{background:#fff;color:var(--voice);border:1.5px solid var(--voice-dim);
+    border-radius:var(--radius);width:46px;height:46px;cursor:pointer;font-size:18px;
+    display:flex;align-items:center;justify-content:center;transition:all .15s;
+    flex-shrink:0;box-shadow:var(--shadow);position:relative}
+  #voice-btn:hover:not(:disabled){background:var(--voice-bg);border-color:var(--voice);
+    transform:translateY(-1px);box-shadow:0 4px 8px rgba(124,58,237,.2)}
+  #voice-btn.on{background:var(--voice);color:#fff;border-color:var(--voice);
+    animation:vbp 2s infinite}
+  @keyframes vbp{0%,100%{box-shadow:0 4px 12px rgba(124,58,237,.35)}
+    50%{box-shadow:0 4px 20px rgba(124,58,237,.6)}}
+  #voice-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;animation:none}
+
+  /* recording ring around voice button */
+  #voice-btn.on::after{content:'';position:absolute;inset:-4px;border-radius:var(--radius);
+    border:2px solid var(--voice);animation:vring 1.2s ease-in-out infinite;pointer-events:none}
+  @keyframes vring{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.08)}}
+  .input-hint{font-size:10px;font-family:var(--font-mono);color:#ccc;
+    margin-top:7px;text-align:center;letter-spacing:.02em}
+
+  /* ── Panel ── */
+  .panel{width:240px;border-left:1px solid var(--border);background:var(--surface);
+    display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+  .panel-section{padding:14px 14px 10px;border-bottom:1px solid var(--border)}
+  .panel-section:last-child{border-bottom:none}
+  .panel-section h3{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:10px}
+  .stat-row{display:flex;justify-content:space-between;align-items:center;
+    padding:5px 0;border-bottom:1px solid #ebebeb}
+  .stat-row:last-child{border-bottom:none}
+  .stat-label{color:var(--muted);font-size:11px}
+  .stat-val{font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--text)}
+  .stat-val.hi{color:var(--red)}
+  .vs-box{background:var(--voice-bg);border:1px solid var(--voice-dim);border-radius:var(--radius-sm);
+    padding:10px 12px;margin-bottom:8px}
+  .vs-row{display:flex;justify-content:space-between;align-items:center;
+    padding:3px 0;font-size:11px;font-family:var(--font-mono)}
+  .vs-lbl{color:#a78bfa}
+  .vs-val{color:var(--voice);font-weight:700}
+  .vs-val.g{color:var(--green)}
+  .vs-val.w{color:var(--amber)}
+  .log-entry{font-family:var(--font-mono);font-size:10px;padding:5px 0;
+    border-bottom:1px solid #ebebeb;line-height:1.5}
+  .log-entry:last-child{border-bottom:none}
+  .lt{color:#bbb}.ln{color:var(--red);font-weight:700}.ln.v{color:var(--voice)}.lm{color:var(--text2)}
+  .panel::-webkit-scrollbar{width:3px}
+  .panel::-webkit-scrollbar-track{background:transparent}
+  .panel::-webkit-scrollbar-thumb{background:var(--border)}
+  .msg.error .msg-bubble{background:var(--red-light);border:1px solid var(--red-dim);
+    color:var(--red);font-family:var(--font-mono);font-size:12px}
 </style>
 </head>
 <body>
 
-<!-- Header -->
 <header>
   <div class="logo">
     <div class="logo-badge">ZUU CREW</div>
-    <div>
-      <div class="logo-name">IT Support Swarm</div>
-      <div class="logo-sub">Multi-agent incident resolution</div>
-    </div>
+    <div><div class="logo-name">IT Support Swarm</div><div class="logo-sub">Multi-agent incident resolution</div></div>
   </div>
   <div class="header-right">
     <div class="status-bar">
-      <div class="status-item">
-        <div class="status-dot checking" id="dot-api"></div>
-        <span>API</span>
-      </div>
-      <div class="status-item">
-        <div class="status-dot ok" id="dot-qdrant"></div>
-        <span>Qdrant</span>
-      </div>
-      <div class="status-item">
-        <div class="status-dot checking" id="dot-sb"></div>
-        <span>Supabase</span>
-      </div>
-      <div class="status-item" id="voice-status-item" style="display:none">
-        <div class="status-dot voice-active" id="dot-voice"></div>
-        <span>Voice</span>
+      <div class="status-item"><div class="status-dot checking" id="dot-api"></div><span>API</span></div>
+      <div class="status-item"><div class="status-dot ok"       id="dot-qdrant"></div><span>Qdrant</span></div>
+      <div class="status-item"><div class="status-dot checking" id="dot-sb"></div><span>Supabase</span></div>
+      <div class="status-item" id="dot-voice-wrap" style="display:none">
+        <div class="status-dot voice-on"></div><span>Voice</span>
       </div>
     </div>
     <div class="user-chip">
@@ -897,97 +280,57 @@
   </div>
 </header>
 
-<!-- Layout -->
 <div class="layout">
-
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Quick tests</div>
-
       <button class="quick-btn" onclick="sendQuick('How do I reset my VPN? I keep getting disconnected.')">
-        <span class="tag tag-t1">T1 · ACCESS</span>
-        <span class="btn-label">VPN reset</span>
-      </button>
-
+        <span class="tag tag-t1">T1 · ACCESS</span><span class="btn-label">VPN reset</span></button>
       <button class="quick-btn" onclick="sendQuick('My MFA authenticator app codes are not working, I cannot log in.')">
-        <span class="tag tag-t1">T1 · ACCESS</span>
-        <span class="btn-label">MFA issue</span>
-      </button>
-
-      <button class="quick-btn" onclick="sendQuick('My laptop screen is cracked and it wont turn on anymore. I need a replacement.')">
-        <span class="tag tag-t2">T2 · ASSET</span>
-        <span class="btn-label">Broken laptop</span>
-      </button>
-
-      <button class="quick-btn" onclick="sendQuick('The checkout API is incredibly slow today, response times are over 10 seconds.')">
-        <span class="tag tag-t3">T3 · DEGRADED</span>
-        <span class="btn-label">Slow API</span>
-      </button>
-
+        <span class="tag tag-t1">T1 · ACCESS</span><span class="btn-label">MFA issue</span></button>
+      <button class="quick-btn" onclick="sendQuick('My laptop screen is cracked and it wont turn on anymore.')">
+        <span class="tag tag-t2">T2 · ASSET</span><span class="btn-label">Broken laptop</span></button>
+      <button class="quick-btn" onclick="sendQuick('The checkout API is incredibly slow today, over 10 seconds.')">
+        <span class="tag tag-t3">T3 · DEGRADED</span><span class="btn-label">Slow API</span></button>
       <button class="quick-btn" onclick="sendQuick('Redis is running out of memory on prod-cache-01 and all services are going down.')">
-        <span class="tag tag-t4">T4 · CRITICAL</span>
-        <span class="btn-label">Redis OOM</span>
-      </button>
-
+        <span class="tag tag-t4">T4 · CRITICAL</span><span class="btn-label">Redis OOM</span></button>
       <button class="quick-btn" onclick="sendQuick('Auth-db is down, nobody can log in to the platform.')">
-        <span class="tag tag-t4">T4 · CRITICAL</span>
-        <span class="btn-label">Auth DB down</span>
-      </button>
+        <span class="tag tag-t4">T4 · CRITICAL</span><span class="btn-label">Auth DB down</span></button>
     </div>
-
     <hr class="sidebar-divider"/>
-
-    <div class="sidebar-section">
-      <div class="sidebar-label">Settings</div>
-    </div>
-
+    <div class="sidebar-section"><div class="sidebar-label">Settings</div></div>
     <div class="setting-group">
-      <div>
-        <div class="setting-label">User ID</div>
-        <input class="setting-input" id="user-id-input" type="text" value="EMP-0150"
-          oninput="updateUserId(this.value)"/>
-      </div>
-      <div>
-        <div class="setting-label">API Base URL</div>
-        <input class="setting-input" id="api-url-input" type="text" value="http://localhost:8000"/>
-      </div>      
+      <div><div class="setting-label">User ID</div>
+        <input class="setting-input" id="user-id-input" type="text" value="EMP-0150" oninput="updateUserId(this.value)"/></div>
+      <div><div class="setting-label">API Base URL</div>
+        <input class="setting-input" id="api-url-input" type="text" value="http://localhost:8000"/></div>
       <button class="clear-btn" onclick="clearChat()">Clear conversation</button>
     </div>
   </aside>
 
-  <!-- Chat area -->
   <main class="chat-area">
-
-    <!-- Thread banner -->
     <div class="thread-banner" id="thread-banner">
-      <span>
-        💬 Continuing thread &nbsp;
-        <span class="thread-id" id="thread-id-display"></span>
-      </span>
+      <span>💬 Continuing thread &nbsp;<span class="thread-id" id="thread-id-display"></span></span>
       <button class="thread-end-btn" onclick="endThread()">New ticket</button>
     </div>
 
-    <!-- Voice banner — shown during an active voice call -->
+    <!-- Voice recording indicator — shown while mic is open -->
     <div class="voice-banner" id="voice-banner">
-      <div class="voice-banner-left">
-        <div class="voice-orb listening" id="voice-orb">🎙️</div>
+      <div class="vb-left">
+        <div class="vorb listening" id="vorb">🎙️</div>
         <div>
-          <div class="voice-status-text" id="voice-status-text">Listening...</div>
-          <div class="voice-status-sub" id="voice-status-sub">Speak your IT incident</div>
+          <div class="vb-title" id="vb-title">Listening...</div>
+          <div class="vb-sub"   id="vb-sub">Speak your incident — transcript appears in the box below</div>
         </div>
-        <div class="voice-latency-badge" id="voice-latency-badge" style="display:none">—</div>
       </div>
-      <button class="voice-end-btn" onclick="endVoiceCall()">
-        ⏹ End call
-      </button>
+      <button class="vb-end" onclick="stopVoice()">⏹ Stop</button>
     </div>
 
     <div class="messages" id="messages">
       <div class="empty-state" id="empty-state">
         <div class="empty-icon">⚡</div>
         <h2>IT Support Swarm</h2>
-        <p>Report an IT incident via text or voice. The swarm will triage, investigate, and resolve it automatically.</p>
+        <p>Report an IT incident via text, or press 🎙️ to speak directly. The swarm will triage, investigate, and resolve it automatically.</p>
         <div class="empty-hints">
           <span class="empty-hint" onclick="sendQuick('How do I reset my VPN?')">VPN reset</span>
           <span class="empty-hint" onclick="sendQuick('Redis OOM on prod-cache-01')">Redis OOM</span>
@@ -1000,661 +343,350 @@
     <div class="input-zone">
       <div class="input-row">
         <div class="input-wrap" id="input-wrap">
-          <textarea id="msg-input"
-            placeholder="Describe your IT incident..."
-            onkeydown="handleKey(event)"
-          ></textarea>
+          <textarea id="msg-input" placeholder="Describe your IT incident..." onkeydown="handleKey(event)"></textarea>
         </div>
-        <!-- Voice button -->
-        <button id="voice-btn" onclick="toggleVoice()" title="Start voice call (LiveKit)">
-          🎙️
-        </button>
-        <button id="send-btn" onclick="sendMessage()" title="Send (Enter)">
-          &#9658;
-        </button>
+        <button id="voice-btn" onclick="toggleVoice()" title="Start voice call">🎙️</button>
+        <button id="send-btn"  onclick="sendMessage()" title="Send (Enter)">&#9658;</button>
       </div>
-      <div class="input-hint" id="input-hint">
-        Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line &nbsp;&middot;&nbsp; 🎙️ for voice
-      </div>
+      <div class="input-hint" id="input-hint">Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line &nbsp;&middot;&nbsp; 🎙️ for voice</div>
     </div>
   </main>
 
-  <!-- Right panel -->
   <aside class="panel">
     <div class="panel-section">
       <h3>Session stats</h3>
-      <div class="stat-row">
-        <span class="stat-label">Total tickets</span>
-        <span class="stat-val" id="stat-total">0</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Cache hits</span>
-        <span class="stat-val" id="stat-cache">0</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Swarm runs</span>
-        <span class="stat-val" id="stat-swarm">0</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Avg latency</span>
-        <span class="stat-val highlight" id="stat-latency">—</span>
-      </div>
+      <div class="stat-row"><span class="stat-label">Total tickets</span><span class="stat-val" id="stat-total">0</span></div>
+      <div class="stat-row"><span class="stat-label">Cache hits</span>  <span class="stat-val" id="stat-cache">0</span></div>
+      <div class="stat-row"><span class="stat-label">Swarm runs</span>  <span class="stat-val" id="stat-swarm">0</span></div>
+      <div class="stat-row"><span class="stat-label">Avg latency</span> <span class="stat-val hi" id="stat-latency">—</span></div>
     </div>
 
-    <!-- Voice stats — only visible during/after voice call -->
-    <div class="panel-section" id="voice-stats-section" style="display:none">
-      <h3>Voice stats</h3>
-      <div class="voice-stats-panel">
-        <div class="vs-row">
-          <span class="vs-label">First token</span>
-          <span class="vs-val" id="vs-first-token">—</span>
-        </div>
-        <div class="vs-row">
-          <span class="vs-label">Agent total</span>
-          <span class="vs-val" id="vs-agent-total">—</span>
-        </div>
-        <div class="vs-row">
-          <span class="vs-label">Voice turns</span>
-          <span class="vs-val" id="vs-turns">0</span>
-        </div>
-        <div class="vs-row">
-          <span class="vs-label">Interruptions</span>
-          <span class="vs-val" id="vs-interruptions">0</span>
-        </div>
-      </div>
-    </div>
+
 
     <div class="panel-section">
       <h3>Last ticket</h3>
-      <div class="stat-row">
-        <span class="stat-label">Type</span>
-        <span class="stat-val" id="last-type">—</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Severity</span>
-        <span class="stat-val" id="last-sev">—</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Runbook</span>
-        <span class="stat-val" id="last-runbook"
-          style="font-size:10px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Cache hit</span>
-        <span class="stat-val" id="last-cache">—</span>
-      </div>
+      <div class="stat-row"><span class="stat-label">Type</span>    <span class="stat-val" id="last-type">—</span></div>
+      <div class="stat-row"><span class="stat-label">Severity</span><span class="stat-val" id="last-sev">—</span></div>
+      <div class="stat-row"><span class="stat-label">Runbook</span>
+        <span class="stat-val" id="last-runbook" style="font-size:10px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</span></div>
+      <div class="stat-row"><span class="stat-label">Cache hit</span><span class="stat-val" id="last-cache">—</span></div>
     </div>
 
     <div class="panel-section">
       <h3>Agent log</h3>
       <div id="agent-log">
-        <div style="color:#ccc;font-size:11px;font-family:var(--font-mono);padding:4px 0">
-          No activity yet
-        </div>
+        <div style="color:#ccc;font-size:11px;font-family:var(--font-mono);padding:4px 0">No activity yet</div>
       </div>
     </div>
   </aside>
 </div>
 
 <script>
-  // ── State ────────────────────────────────────────────────────────
-  let userId          = 'EMP-0150';
-  let currentTicketId = null;
-  let stats           = { total: 0, cache: 0, swarm: 0, latencies: [] };
+// ── State ─────────────────────────────────────────────────────────────────
+let userId='EMP-0150', currentTicketId=null;
+let stats={total:0,cache:0,swarm:0,latencies:[]};
 
-  // Voice state
-  let voiceActive     = false;
-  let voiceRoom       = null;   // LiveKit Room instance
-  let voiceTurns      = 0;
-  let voiceInterrupts = 0;
+const $=id=>document.getElementById(id);
+function apiUrl(){return ($('api-url-input').value||'http://localhost:8000').replace(/\/$/,'')}
 
-  function getApiUrl()     { return document.getElementById('api-url-input').value.replace(/\/$/, ''); }
-  function getLiveKitUrl() { return document.getElementById('livekit-url-input').value.trim(); }
+function updateUserId(v){
+  userId=v||'EMP-0150';
+  $('user-id-display').textContent=userId;
+  $('user-avatar').textContent=userId.charAt(0).toUpperCase();
+}
 
-  function updateUserId(v) {
-    userId = v || 'EMP-0150';
-    document.getElementById('user-id-display').textContent = userId;
-    document.getElementById('user-avatar').textContent = userId.charAt(0).toUpperCase();
+// ── Thread ─────────────────────────────────────────────────────────────────
+function setActiveThread(id){
+  currentTicketId=id;
+  $('thread-banner').classList.add('active');
+  $('thread-id-display').textContent=id.slice(0,8)+'...';
+  $('input-wrap').classList.add('fm');
+  $('msg-input').placeholder='Reply to this ticket...';
+  $('input-hint').textContent='Replying to '+id.slice(0,8)+' · Enter to send';
+}
+function endThread(){
+  currentTicketId=null;
+  $('thread-banner').classList.remove('active');
+  $('input-wrap').classList.remove('fm');
+  $('msg-input').placeholder='Describe your IT incident...';
+  $('input-hint').textContent='Enter to send · Shift+Enter for new line · 🎙️ for voice';
+  $('msg-input').focus();
+}
+
+// ── Text send ──────────────────────────────────────────────────────────────
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function sendQuick(t){endThread();$('msg-input').value=t;sendMessage();}
+function clearChat(){
+  endThread();if(typeof voiceActive!=='undefined'&&voiceActive)stopVoice();
+  $('messages').innerHTML='<div class="empty-state" id="empty-state">'+
+    '<div class="empty-icon">⚡</div><h2>IT Support Swarm</h2>'+
+    '<p>Report an IT incident via text or press 🎙️ to call.</p>'+
+    '<div class="empty-hints">'+
+    '<span class="empty-hint" onclick="sendQuick(\'How do I reset my VPN?\')">VPN reset</span>'+
+    '<span class="empty-hint" onclick="sendQuick(\'Redis OOM on prod-cache-01\')">Redis OOM</span>'+
+    '</div></div>';
+  $('agent-log').innerHTML='<div style="color:#ccc;font-size:11px;font-family:var(--font-mono);padding:4px 0">No activity yet</div>';
+  stats={total:0,cache:0,swarm:0,latencies:[]};voiceTurns=0;voiceInterrupts=0;updateStats();
+}
+
+async function sendMessage(){
+  const input=$('msg-input'),text=input.value.trim();if(!text)return;
+  const btn=$('send-btn');input.value='';btn.disabled=true;
+  const es=$('empty-state');if(es)es.remove();
+  const isFu=!!currentTicketId;
+  appendMsg('user',text,null,isFu);
+  appendThinking(isFu?'Processing follow-up...':'Routing through swarm...');
+  const t0=Date.now();
+  try{
+    const body={message:text,user_id:userId};
+    if(currentTicketId)body.ticket_id=currentTicketId;
+    const res=await fetch(apiUrl()+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const ms=Date.now()-t0;removeThinking();
+    if(!res.ok)throw new Error('HTTP '+res.status+': '+await res.text());
+    const data=await res.json();
+    const ans=(data.resolution||data.cag_answer||'').trim();
+    if(!ans){appendError('No resolution returned.');btn.disabled=false;return;}
+    appendMsg('agent',ans,data,isFu);
+    if(data.ticket_id&&!currentTicketId)setActiveThread(data.ticket_id);
+    updateLastTicket(data);updateStatsFromResponse(data,ms);addLog(false,data,isFu);
+  }catch(err){removeThinking();appendError(err.message);}
+  btn.disabled=false;$('msg-input').focus();
+}
+
+// ── Voice-to-text (Web Speech API) ────────────────────────────────────────
+// Flow: press 🎙️ → mic opens → transcript appears live in textarea →
+//       user reviews/edits → presses Send (or Enter) as normal.
+// No LiveKit needed for input. LiveKit is only used if agent speaks back via TTS.
+
+let recognition = null;
+let voiceActive  = false;
+let voiceFinal   = '';   // accumulates final segments
+
+function toggleVoice(){
+  voiceActive ? stopVoice() : startVoice();
+}
+
+function startVoice(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    appendError('Voice input is not supported in this browser. Use Chrome or Edge.');
+    return;
   }
 
-  // ── Thread management ─────────────────────────────────────────────
-  function setActiveThread(ticketId) {
-    currentTicketId = ticketId;
-    const banner = document.getElementById('thread-banner');
-    document.getElementById('thread-id-display').textContent = ticketId.slice(0, 8) + '...';
-    document.getElementById('input-wrap').classList.add('followup-mode');
-    document.getElementById('msg-input').placeholder = 'Reply to this ticket...';
-    document.getElementById('input-hint').textContent =
-      'Replying to ticket ' + ticketId.slice(0, 8) + ' · Enter to send · Shift+Enter for new line';
-    banner.classList.add('active');
-  }
+  recognition = new SR();
+  recognition.continuous     = true;   // keep listening until stopped
+  recognition.interimResults = true;   // show interim transcript while speaking
+  recognition.lang           = 'en-US';
 
-  function endThread() {
-    currentTicketId = null;
-    document.getElementById('thread-banner').classList.remove('active');
-    document.getElementById('input-wrap').classList.remove('followup-mode');
-    document.getElementById('msg-input').placeholder = 'Describe your IT incident...';
-    document.getElementById('input-hint').textContent =
-      'Enter to send · Shift+Enter for new line · 🎙️ for voice';
-    document.getElementById('msg-input').focus();
-  }
+  const input = $('msg-input');
+  voiceFinal  = input.value;           // preserve any text already typed
 
-  // ── Keyboard ──────────────────────────────────────────────────────
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  }
+  recognition.onstart = () => {
+    voiceActive = true;
+    $('voice-btn').classList.add('on');
+    $('voice-btn').title = 'Stop recording';
+    $('voice-banner').classList.add('active');
+    $('dot-voice-wrap').style.display = 'flex';
+    $('vb-title').textContent = 'Listening...';
+    $('vb-sub').textContent   = 'Speak — transcript appears below';
+    const es=$('empty-state');if(es)es.remove();
+  };
 
-  function sendQuick(text) {
-    endThread();
-    document.getElementById('msg-input').value = text;
-    sendMessage();
-  }
-
-  function clearChat() {
-    endThread();
-    if (voiceActive) endVoiceCall();
-    document.getElementById('messages').innerHTML =
-      '<div class="empty-state" id="empty-state">' +
-      '<div class="empty-icon">⚡</div><h2>IT Support Swarm</h2>' +
-      '<p>Report an IT incident via text or voice.</p>' +
-      '<div class="empty-hints">' +
-      '<span class="empty-hint" onclick="sendQuick(\'How do I reset my VPN?\')">VPN reset</span>' +
-      '<span class="empty-hint" onclick="sendQuick(\'Redis OOM on prod-cache-01\')">Redis OOM</span>' +
-      '</div></div>';
-    document.getElementById('agent-log').innerHTML =
-      '<div style="color:#ccc;font-size:11px;font-family:var(--font-mono);padding:4px 0">No activity yet</div>';
-    stats = { total: 0, cache: 0, swarm: 0, latencies: [] };
-    voiceTurns = 0; voiceInterrupts = 0;
-    updateStats();
-  }
-
-  // ── Send (text) ───────────────────────────────────────────────────
-  async function sendMessage() {
-    const input   = document.getElementById('msg-input');
-    const text    = input.value.trim();
-    if (!text) return;
-
-    const sendBtn = document.getElementById('send-btn');
-    input.value   = '';
-    sendBtn.disabled = true;
-
-    const es = document.getElementById('empty-state');
-    if (es) es.remove();
-
-    const isFollowUp = !!currentTicketId;
-    appendMessage('user', text, null, isFollowUp, false);
-    appendThinking(isFollowUp ? 'Processing follow-up...' : 'Routing ticket through swarm...');
-    const t0 = Date.now();
-
-    try {
-      const body = { message: text, user_id: userId };
-      if (currentTicketId) body.ticket_id = currentTicketId;
-
-      const res = await fetch(getApiUrl() + '/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const latency = Date.now() - t0;
-      removeThinking();
-
-      if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + await res.text());
-
-      const data = await res.json();
-      const resolution = (data.resolution || data.cag_answer || '').trim();
-      if (!resolution) {
-        appendError('No resolution returned. The swarm could not process this request.');
-        sendBtn.disabled = false;
-        return;
-      }
-
-      appendMessage('agent', resolution, data, isFollowUp, false);
-      if (data.ticket_id && !currentTicketId) setActiveThread(data.ticket_id);
-      updateLastTicket(data);
-      updateStatsFromResponse(data, latency);
-      addAgentLog(data, isFollowUp, false);
-
-    } catch (err) {
-      removeThinking();
-      appendError(err.message);
-    }
-
-    sendBtn.disabled = false;
-    document.getElementById('msg-input').focus();
-  }
-
-  // ── Voice ─────────────────────────────────────────────────────────
-  async function toggleVoice() {
-    if (voiceActive) { endVoiceCall(); return; }
-    await startVoiceCall();
-  }
-
-  async function startVoiceCall() {  
-
-    // Request a LiveKit token from the FastAPI backend
-    let token;
-    try {
-      const res = await fetch(getApiUrl() + '/voice/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, room: 'it-support-' + Date.now() }),
-      });
-      if (!res.ok) throw new Error('Token endpoint returned ' + res.status);
-      const data = await res.json();
-      token = data.token;
-      lkUrl   = data.url; 
-    } catch (err) {
-      appendError('Could not get voice token: ' + err.message + '. Make sure /voice/token is implemented in your FastAPI server.');
-      return;
-    }
-
-    // Load LiveKit client SDK dynamically
-    if (!window.LivekitClient) {
-      try {
-        await loadScript('https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js');
-      } catch {
-        appendError('Failed to load LiveKit client SDK. Check your internet connection.');
-        return;
+  recognition.onresult = (event) => {
+    let interim = '';
+    // Collect all results since last final
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const t = event.results[i][0].transcript;
+      if(event.results[i].isFinal){
+        voiceFinal += (voiceFinal && !voiceFinal.endsWith(' ') ? ' ' : '') + t.trim();
+      } else {
+        interim = t;
       }
     }
+    // Show final + interim in the textarea so user sees live transcription
+    input.value = voiceFinal + (interim ? ' ' + interim : '');
+    // Auto-resize textarea
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 130) + 'px';
+    // Update banner status
+    $('vb-title').textContent = interim ? 'Hearing you...' : 'Listening...';
+  };
 
-    try {
-      const room = new window.LivekitClient.Room({
-        adaptiveStream: true,
-        dynacast: true,
-      });
-      voiceRoom = room;
-
-      // ── LiveKit room events ──────────────────────────────────────
-      room.on('connected', () => {
-        setVoiceState('listening', 'Speak your incident');
-      });
-
-      room.on('disconnected', () => {
-        setVoiceState(null);
-      });
-
-      // Track state: when agent publishes audio → it's speaking
-      room.on('trackSubscribed', (track, pub, participant) => {
-        if (track.kind === 'audio' && participant.isAgent) {
-          track.on('audioPlaybackStarted', () => setVoiceState('speaking', 'Agent responding...'));
-          track.on('audioPlaybackFinished', () => setVoiceState('listening', 'Speak your incident'));
-        }
-      });
-
-      // Data channel — receives latency HUD updates from the agent
-      room.on('dataReceived', (payload, participant, kind, topic) => {
-        if (topic === 'latency') {
-          try {
-            const d = JSON.parse(new TextDecoder().decode(payload));
-            handleVoiceLatencyUpdate(d);
-          } catch {}
-        }
-      });
-
-      // Transcript events — agent publishes transcripts over data channel
-      room.on('dataReceived', (payload, participant, kind, topic) => {
-        if (topic === 'transcript') {
-          try {
-            const d = JSON.parse(new TextDecoder().decode(payload));
-            if (d.role === 'user')  appendVoiceUserMsg(d.text);
-            if (d.role === 'agent') appendVoiceAgentMsg(d.text, d.interrupted);
-          } catch {}
-        }
-      });
-
-      await room.connect(lkUrl, token);
-
-      // Publish microphone
-      await room.localParticipant.setMicrophoneEnabled(true);
-
-      voiceActive = true;
-      voiceTurns  = 0;
-      voiceInterrupts = 0;
-
-      document.getElementById('voice-btn').classList.add('active');
-      document.getElementById('voice-btn').title = 'End voice call';
-      document.getElementById('voice-banner').classList.add('active');
-      document.getElementById('voice-status-item').style.display = 'flex';
-      document.getElementById('voice-stats-section').style.display = 'block';
-      document.getElementById('input-wrap').classList.add('voice-mode');
-      document.getElementById('msg-input').disabled = true;
-      document.getElementById('send-btn').disabled = true;
-
-      const es = document.getElementById('empty-state');
-      if (es) es.remove();
-
-      appendVoiceSystemMsg('Voice call started — speak your IT incident');
-
-    } catch (err) {
-      appendError('Voice connection failed: ' + err.message);
-      voiceRoom = null;
+  recognition.onerror = (event) => {
+    if(event.error === 'not-allowed'){
+      appendError('Microphone access denied. Allow mic permission in your browser and try again.');
+    } else if(event.error !== 'aborted'){
+      appendError('Voice error: ' + event.error);
     }
-  }
+    stopVoice();
+  };
 
-  async function endVoiceCall() {
-    if (voiceRoom) {
-      try { await voiceRoom.disconnect(); } catch {}
-      voiceRoom = null;
+  recognition.onend = () => {
+    // Auto-restart if still active (browser stops after silence)
+    if(voiceActive) recognition.start();
+  };
+
+  try {
+    recognition.start();
+  } catch(e) {
+    appendError('Could not start microphone: ' + e.message);
+  }
+}
+
+function stopVoice(){
+  voiceActive = false;
+  if(recognition){
+    recognition.onend = null;   // prevent auto-restart
+    recognition.stop();
+    recognition = null;
+  }
+  $('voice-btn').classList.remove('on');
+  $('voice-btn').title = 'Start voice input';
+  $('voice-banner').classList.remove('active');
+  $('dot-voice-wrap').style.display = 'none';
+  // Leave the transcript in the textarea so user can send it
+  const input = $('msg-input');
+  input.style.height = '';
+  input.focus();
+  // Move cursor to end
+  input.selectionStart = input.selectionEnd = input.value.length;
+}
+
+// stub — kept so existing references don't break
+function setVoiceState(){}
+function handleLatencyHUD(){}
+
+// ── DOM helpers ────────────────────────────────────────────────────────────
+function appendMsg(role,text,data,isFu){
+  const msgs=$('messages'),div=document.createElement('div');
+  div.className='msg '+role+(isFu?' followup':'');
+  const meta=document.createElement('div');meta.className='msg-meta';
+  if(role==='user'){
+    meta.innerHTML='<span style="color:var(--text2);font-weight:600">'+esc(userId)+'</span>'+
+      '<span>&middot;</span><span>'+ts()+'</span>'+
+      (isFu?'<span style="color:var(--blue);font-size:9px">↩ follow-up</span>':'');
+  }else{
+    const src=data&&data.cag_hit?'<span style="color:var(--blue);font-weight:700">⚡ CACHE</span>':'<span style="color:var(--red);font-weight:700">SWARM</span>';
+    meta.innerHTML=src+'<span>&middot;</span><span>'+ts()+'</span>'+
+      (isFu?'<span style="color:var(--blue);font-size:9px">↩ reply</span>':'');
+  }
+  const bubble=document.createElement('div');bubble.className='msg-bubble';bubble.textContent=text;
+  div.appendChild(meta);div.appendChild(bubble);
+  if(role==='agent'&&data&&!isFu){const c=buildMetaCard(data);if(c)div.appendChild(c);}
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function appendVoiceMsg(role,text,interrupted){
+  const msgs=$('messages'),div=document.createElement('div');
+  div.className='msg '+role+' vm'+(interrupted?' vi':'');
+  const meta=document.createElement('div');meta.className='msg-meta';
+  if(role==='user'){
+    meta.innerHTML='<span style="color:var(--text2);font-weight:600">'+esc(userId)+'</span>'+
+      '<span>&middot;</span><span>'+ts()+'</span><span class="vtag">🎙️ voice</span>';
+  }else{
+    meta.innerHTML='<span style="color:var(--voice);font-weight:700">🤖 AGENT</span>'+
+      '<span>&middot;</span><span>'+ts()+'</span><span class="vtag">🔊 voice</span>'+
+      (interrupted?'<span class="itag">⚡ interrupted</span>':'');
+  }
+  const bubble=document.createElement('div');bubble.className='msg-bubble';bubble.textContent=text;
+  div.appendChild(meta);div.appendChild(bubble);
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function sysMsg(text){
+  const msgs=$('messages'),div=document.createElement('div');
+  div.className='sys-msg';div.textContent=text;
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function appendThinking(label){
+  const msgs=$('messages'),div=document.createElement('div');
+  div.className='thinking';div.id='thinking-indicator';
+  div.innerHTML='<div class="thinking-dots"><span></span><span></span><span></span></div>'+
+    '<span><span class="stage">SWARM</span> &mdash; '+esc(label)+'</span>';
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+function removeThinking(){const e=$('thinking-indicator');if(e)e.remove();}
+
+function appendError(msg){
+  const msgs=$('messages'),div=document.createElement('div');div.className='msg error';
+  div.innerHTML='<div class="msg-meta"><span style="color:var(--red);font-weight:700">ERROR</span>'+
+    '<span>&middot;</span><span>'+ts()+'</span></div><div class="msg-bubble">'+esc(msg)+'</div>';
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function buildMetaCard(data){
+  if(!data.ticket_type&&!data.severity&&data.cag_hit===undefined)return null;
+  const card=document.createElement('div');card.className='meta-card';
+  const add=(k,v)=>{const i=document.createElement('div');i.className='mi';
+    i.innerHTML='<span class="mk">'+k+'</span><span class="mv">'+v+'</span>';card.appendChild(i);};
+  if(data.ticket_id)   add('Ticket ID',data.ticket_id.slice(0,8)+'...');
+  if(data.ticket_type) add('Type','T'+data.ticket_type);
+  if(data.severity){
+    const cls=data.severity==='critical'?'sc':data.severity==='medium'?'sm':'sl';
+    const i=document.createElement('div');i.className='mi';
+    i.innerHTML='<span class="mk">Severity</span><span class="mv"><span class="sev '+cls+'">'+
+      data.severity.toUpperCase()+'</span></span>';card.appendChild(i);
+  }
+  const ci=document.createElement('div');ci.className='mi';
+  ci.innerHTML='<span class="mk">Cache hit</span><span class="mv"><span class="sev '+(data.cag_hit?'sh':'sl')+'">'+(data.cag_hit?'HIT':'MISS')+'</span></span>';
+  card.appendChild(ci);
+  if(data.runbook_used)add('Runbook',data.runbook_used.replace('runbook-','').replace('.md',''));
+  return card;
+}
+
+function updateLastTicket(d){
+  $('last-type').textContent    = d.ticket_type?'Type '+d.ticket_type:'—';
+  $('last-sev').textContent     = d.severity||'—';
+  $('last-cache').textContent   = d.cag_hit?'YES ⚡':'NO';
+  $('last-runbook').textContent = d.runbook_used?d.runbook_used.replace('runbook-','').replace('.md',''):'—';
+}
+function updateStatsFromResponse(d,ms){
+  stats.total++;if(d.cag_hit)stats.cache++;else stats.swarm++;
+  stats.latencies.push(ms);updateStats();
+}
+function updateStats(){
+  $('stat-total').textContent=stats.total;$('stat-cache').textContent=stats.cache;
+  $('stat-swarm').textContent=stats.swarm;
+  const avg=stats.latencies.length?Math.round(stats.latencies.reduce((a,b)=>a+b,0)/stats.latencies.length):null;
+  $('stat-latency').textContent=avg?avg+'ms':'—';
+}
+function addLog(isVoice,data,subtype){
+  const log=$('agent-log'),ph=log.querySelector('div[style]');if(ph)ph.remove();
+  const type=data.ticket_type?'T'+data.ticket_type:'?';
+  const sev=data.severity?data.severity.toUpperCase():'?';
+  const src=isVoice?(subtype==='agent'?'VOICE':'VOICE'):(subtype==='reply'?'REPLY':(data.cag_hit?'CACHE':'SWARM'));
+  const cls=isVoice?'ln v':'ln';
+  const body=isVoice?'voice turn':(type+' &middot; '+sev);
+  const e=document.createElement('div');e.className='log-entry';
+  e.innerHTML='<span class="lt">'+ts()+'</span> <span class="'+cls+'">['+src+']</span> <span class="lm">'+body+'</span>';
+  log.insertBefore(e,log.firstChild);
+  while(log.children.length>15)log.removeChild(log.lastChild);
+}
+
+// ── Health check ──────────────────────────────────────────────────────────
+async function checkHealth(){
+  try{
+    const res=await fetch(apiUrl()+'/health',{signal:AbortSignal.timeout(4000)});
+    const data=res.ok?await res.json():null;
+    $('dot-api').className=res.ok?'status-dot ok':'status-dot err';
+    if(data&&data.services){
+      const sb=data.services.find(s=>s.name==='supabase');
+      const qd=data.services.find(s=>s.name==='qdrant');
+      $('dot-sb').className    =sb&&sb.status==='ok'?'status-dot ok':'status-dot err';
+      $('dot-qdrant').className=qd&&qd.status==='ok'?'status-dot ok':'status-dot err';
     }
-    voiceActive = false;
+  }catch{$('dot-api').className='status-dot err';}
+}
 
-    document.getElementById('voice-btn').classList.remove('active');
-    document.getElementById('voice-btn').title = 'Start voice call (LiveKit)';
-    document.getElementById('voice-banner').classList.remove('active');
-    document.getElementById('voice-status-item').style.display = 'none';
-    document.getElementById('input-wrap').classList.remove('voice-mode');
-    document.getElementById('msg-input').disabled = false;
-    document.getElementById('send-btn').disabled = false;
+function ts(){return new Date().toLocaleTimeString('en-US',{hour12:false});}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function loadScript(src){
+  return new Promise((res,rej)=>{const s=document.createElement('script');
+    s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+}
 
-    appendVoiceSystemMsg('Voice call ended');
-    setVoiceState(null);
-  }
-
-  function setVoiceState(state, sub) {
-    const orb  = document.getElementById('voice-orb');
-    const text = document.getElementById('voice-status-text');
-    const subEl = document.getElementById('voice-status-sub');
-
-    orb.className = 'voice-orb';
-    if (state === 'listening') {
-      orb.classList.add('listening');
-      orb.textContent = '🎙️';
-      text.textContent = 'Listening...';
-      subEl.textContent = sub || 'Speak your IT incident';
-    } else if (state === 'speaking') {
-      orb.classList.add('speaking');
-      orb.textContent = '🔊';
-      text.textContent = 'Agent speaking';
-      subEl.textContent = sub || 'Barge in to interrupt';
-    } else {
-      orb.textContent = '🎙️';
-      text.textContent = 'Disconnected';
-      subEl.textContent = '';
-    }
-  }
-
-  function handleVoiceLatencyUpdate(d) {
-    // Update the voice banner badge
-    if (d.first_token_ms != null) {
-      const badge = document.getElementById('voice-latency-badge');
-      badge.style.display = 'block';
-      badge.textContent = d.first_token_ms + 'ms';
-    }
-    // Update voice stats panel
-    if (d.first_token_ms != null)
-      document.getElementById('vs-first-token').textContent = d.first_token_ms + 'ms';
-    if (d.agent_total_ms != null)
-      document.getElementById('vs-agent-total').textContent = d.agent_total_ms + 'ms';
-
-    voiceTurns++;
-    document.getElementById('vs-turns').textContent = voiceTurns;
-
-    // Sub-2s latency is the rubric target — colour code
-    const ftEl = document.getElementById('vs-first-token');
-    if (d.first_token_ms != null) {
-      ftEl.style.color = d.first_token_ms < 2000 ? 'var(--green)' : 'var(--amber)';
-    }
-  }
-
-  // ── Voice message helpers ──────────────────────────────────────────
-  function appendVoiceUserMsg(text) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg user voice-msg';
-    div.innerHTML =
-      '<div class="msg-meta">' +
-        '<span style="color:var(--text2);font-weight:600">' + userId + '</span>' +
-        '<span>&middot;</span><span>' + nowTime() + '</span>' +
-        '<span class="voice-tag">🎙️ voice</span>' +
-      '</div>' +
-      '<div class="msg-bubble">' + escHtml(text) + '</div>';
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  function appendVoiceAgentMsg(text, interrupted) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg agent voice-msg' + (interrupted ? ' voice-interrupted' : '');
-
-    const interruptedTag = interrupted
-      ? '<span class="interrupted-tag">⚡ interrupted</span>' : '';
-
-    div.innerHTML =
-      '<div class="msg-meta">' +
-        '<span style="color:var(--voice);font-weight:700">🤖 AGENT</span>' +
-        '<span>&middot;</span><span>' + nowTime() + '</span>' +
-        '<span class="voice-tag">🔊 voice</span>' +
-        interruptedTag +
-      '</div>' +
-      '<div class="msg-bubble">' + escHtml(text) + '</div>';
-
-    if (interrupted) {
-      voiceInterrupts++;
-      document.getElementById('vs-interruptions').textContent = voiceInterrupts;
-    }
-
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    addVoiceAgentLog(interrupted);
-  }
-
-  function appendVoiceSystemMsg(text) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.style.cssText = 'text-align:center;font-size:10px;font-family:var(--font-mono);color:var(--voice);padding:4px 0;';
-    div.textContent = '— ' + text + ' —';
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  // ── Text message DOM helpers ───────────────────────────────────────
-  function appendMessage(role, text, data, isFollowUp, isVoice) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg ' + role + (isFollowUp ? ' followup' : '') + (isVoice ? ' voice-msg' : '');
-
-    const meta = document.createElement('div');
-    meta.className = 'msg-meta';
-
-    if (role === 'user') {
-      meta.innerHTML =
-        '<span style="color:var(--text2);font-weight:600">' + userId + '</span>' +
-        '<span>&middot;</span><span>' + nowTime() + '</span>' +
-        (isFollowUp ? '<span style="color:var(--blue);font-size:9px">↩ follow-up</span>' : '');
-    } else {
-      const src = data && data.cag_hit
-        ? '<span style="color:var(--blue);font-weight:700">⚡ CACHE</span>'
-        : '<span style="color:var(--red);font-weight:700">SWARM</span>';
-      meta.innerHTML = src + '<span>&middot;</span><span>' + nowTime() + '</span>' +
-        (isFollowUp ? '<span style="color:var(--blue);font-size:9px">↩ reply</span>' : '');
-    }
-
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    bubble.textContent = text;
-
-    div.appendChild(meta);
-    div.appendChild(bubble);
-
-    if (role === 'agent' && data && !isFollowUp) {
-      const card = buildMetaCard(data);
-      if (card) div.appendChild(card);
-    }
-
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    return div;
-  }
-
-  function buildMetaCard(data) {
-    if (!data.ticket_type && !data.severity && data.cag_hit === undefined) return null;
-    const card = document.createElement('div');
-    card.className = 'meta-card';
-
-    const addItem = (k, v) => {
-      const item = document.createElement('div');
-      item.className = 'meta-item';
-      item.innerHTML = '<span class="meta-key">' + k + '</span><span class="meta-val">' + v + '</span>';
-      card.appendChild(item);
-    };
-
-    if (data.ticket_id)   addItem('Ticket ID', data.ticket_id.slice(0, 8) + '...');
-    if (data.ticket_type) addItem('Type', 'T' + data.ticket_type);
-
-    if (data.severity) {
-      const cls = data.severity === 'critical' ? 'sev-critical'
-                : data.severity === 'medium'   ? 'sev-medium' : 'sev-low';
-      const item = document.createElement('div');
-      item.className = 'meta-item';
-      item.innerHTML = '<span class="meta-key">Severity</span>' +
-        '<span class="meta-val"><span class="sev-badge ' + cls + '">' +
-        data.severity.toUpperCase() + '</span></span>';
-      card.appendChild(item);
-    }
-
-    const cacheItem = document.createElement('div');
-    cacheItem.className = 'meta-item';
-    cacheItem.innerHTML = '<span class="meta-key">Cache hit</span>' +
-      '<span class="meta-val"><span class="sev-badge ' + (data.cag_hit ? 'sev-hit' : 'sev-low') + '">' +
-      (data.cag_hit ? 'HIT' : 'MISS') + '</span></span>';
-    card.appendChild(cacheItem);
-
-    if (data.runbook_used) addItem('Runbook', data.runbook_used.replace('runbook-', '').replace('.md', ''));
-    return card;
-  }
-
-  function appendThinking(label) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'thinking';
-    div.id = 'thinking-indicator';
-    div.innerHTML =
-      '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
-      '<span><span class="stage">SWARM</span> &mdash; <span id="thinking-label">' + label + '</span></span>';
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  function removeThinking() {
-    const el = document.getElementById('thinking-indicator');
-    if (el) el.remove();
-  }
-
-  function appendError(msg) {
-    const msgs = document.getElementById('messages');
-    const div  = document.createElement('div');
-    div.className = 'msg error';
-    div.innerHTML =
-      '<div class="msg-meta"><span style="color:var(--red);font-weight:700">ERROR</span>' +
-      '<span>&middot;</span><span>' + nowTime() + '</span></div>' +
-      '<div class="msg-bubble">' + escHtml(msg) + '</div>';
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-  }
-
-  // ── Panel updates ─────────────────────────────────────────────────
-  function updateLastTicket(data) {
-    document.getElementById('last-type').textContent    = data.ticket_type ? 'Type ' + data.ticket_type : '—';
-    document.getElementById('last-sev').textContent     = data.severity || '—';
-    document.getElementById('last-cache').textContent   = data.cag_hit ? 'YES ⚡' : 'NO';
-    document.getElementById('last-runbook').textContent = data.runbook_used
-      ? data.runbook_used.replace('runbook-', '').replace('.md', '') : '—';
-  }
-
-  function updateStatsFromResponse(data, latency) {
-    stats.total++;
-    if (data.cag_hit) stats.cache++; else stats.swarm++;
-    stats.latencies.push(latency);
-    updateStats();
-  }
-
-  function updateStats() {
-    document.getElementById('stat-total').textContent = stats.total;
-    document.getElementById('stat-cache').textContent = stats.cache;
-    document.getElementById('stat-swarm').textContent = stats.swarm;
-    const avg = stats.latencies.length
-      ? Math.round(stats.latencies.reduce((a, b) => a + b, 0) / stats.latencies.length) : null;
-    document.getElementById('stat-latency').textContent = avg ? avg + 'ms' : '—';
-  }
-
-  function addAgentLog(data, isFollowUp, isVoice) {
-    const log = document.getElementById('agent-log');
-    const placeholder = log.querySelector('div[style]');
-    if (placeholder) placeholder.remove();
-
-    const type = data.ticket_type ? 'T' + data.ticket_type : '?';
-    const sev  = data.severity ? data.severity.toUpperCase() : '?';
-    const src  = isVoice ? 'VOICE' : isFollowUp ? 'REPLY' : (data.cag_hit ? 'CACHE' : 'SWARM');
-    const nodeClass = isVoice ? 'log-node voice' : 'log-node';
-
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML =
-      '<span class="log-time">' + nowTime() + '</span> ' +
-      '<span class="' + nodeClass + '">[' + src + ']</span> ' +
-      '<span class="log-msg">' + type + ' &middot; ' + sev + '</span>';
-
-    log.insertBefore(entry, log.firstChild);
-    while (log.children.length > 15) log.removeChild(log.lastChild);
-  }
-
-  function addVoiceAgentLog(interrupted) {
-    const log = document.getElementById('agent-log');
-    const placeholder = log.querySelector('div[style]');
-    if (placeholder) placeholder.remove();
-
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.innerHTML =
-      '<span class="log-time">' + nowTime() + '</span> ' +
-      '<span class="log-node voice">[VOICE]</span> ' +
-      '<span class="log-msg">' + (interrupted ? '⚡ interrupted' : 'response sent') + '</span>';
-
-    log.insertBefore(entry, log.firstChild);
-    while (log.children.length > 15) log.removeChild(log.lastChild);
-  }
-
-  // ── Health check ──────────────────────────────────────────────────
-  async function checkHealth() {
-    try {
-      const res  = await fetch(getApiUrl() + '/health', { signal: AbortSignal.timeout(4000) });
-      const data = res.ok ? await res.json() : null;
-      document.getElementById('dot-api').className = res.ok ? 'status-dot ok' : 'status-dot err';
-      if (data && data.services) {
-        const sb = data.services.find(s => s.name === 'supabase');
-        const qd = data.services.find(s => s.name === 'qdrant');
-        document.getElementById('dot-sb').className     = sb && sb.status === 'ok' ? 'status-dot ok' : 'status-dot err';
-        document.getElementById('dot-qdrant').className = qd && qd.status === 'ok' ? 'status-dot ok' : 'status-dot err';
-      }
-    } catch {
-      document.getElementById('dot-api').className = 'status-dot err';
-    }
-  }
-
-  // ── Utils ─────────────────────────────────────────────────────────
-  function nowTime() {
-    return new Date().toLocaleTimeString('en-US', { hour12: false });
-  }
-
-  function escHtml(s) {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src; s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  // ── Init ──────────────────────────────────────────────────────────
-  checkHealth();
-  setInterval(checkHealth, 30000);
-  document.getElementById('msg-input').focus();
+checkHealth();setInterval(checkHealth,30000);$('msg-input').focus();
 </script>
 </body>
 </html>

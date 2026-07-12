@@ -25,6 +25,7 @@ Compatible with **livekit-agents >= 1.5.0**.
 from __future__ import annotations
 
 import asyncio
+from email.mime import text
 import json
 import time
 from typing import Optional
@@ -35,8 +36,10 @@ from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext
 from livekit.agents.voice import Agent, AgentSession
 from livekit.plugins import silero
+from requests import session
 
 from agents.orchastrator import AgentOrchestrator, build_agent
+from voice import adapter
 from voice.adapter import LangGraphLLMAdapter
 from voice.config import VoiceConfig, load_voice_config
 from voice.pipeline import (
@@ -224,14 +227,20 @@ async def create_and_start_agent(ctx: JobContext) -> AgentSession:
 
     @agent_session.on("conversation_item_added")
     def _on_item(ev):
-        # conversation_item_added fires for both user and agent turns.
-        # We use it as the "user committed" signal (user_speech_committed
-        # was renamed/removed in livekit-agents 1.5.x).
         item = getattr(ev, "item", None)
-        if item is not None and getattr(item, "role", None) == "user":
-            text = getattr(item, "text_content", None) or ""
-            if text:
-                on_user_speech_committed(session, text)
+        if item is None:
+            return
+        role = getattr(item, "role", None)
+        text = getattr(item, "text_content", None) or ""
+        if not text:
+            return
+        if role == "user":
+            on_user_speech_committed(session, text)
+            _publish_transcript(ctx, role="user", text=text, interrupted=False)
+        elif role == "assistant":
+            was_interrupted = getattr(adapter, "_last_was_interrupted", False)
+            _publish_transcript(ctx, role="agent", text=text, interrupted=was_interrupted)
+            adapter._last_was_interrupted = False
 
     # ── Barge-in hook ──────────────────────────────────────────
     # Cancel in-flight agent task when user speaks over the agent.
@@ -243,6 +252,7 @@ async def create_and_start_agent(ctx: JobContext) -> AgentSession:
         @agent_session.on("agent_speech_interrupted")
         def _on_interrupted(_ev):
             on_agent_speech_interrupted(session)
+            adapter._last_was_interrupted = True   # flagged before conversation_item_added fires
             adapter.cancel_current()
     except Exception:
         # Some 1.5.x builds don't have this event — state-change fallback only.
@@ -286,3 +296,20 @@ def _publish_latency_hud(ctx: JobContext, agent: Agent) -> None:
             )
     except Exception as e:
         logger.debug(f"publish latency HUD failed (non-fatal): {e}")
+
+def _publish_transcript(ctx, *, role: str, text: str, interrupted: bool) -> None:
+    import json, asyncio
+    try:
+        msg = json.dumps({
+            "type": "transcript",
+            "role": role,
+            "text": text,
+            "interrupted": interrupted,
+        }).encode("utf-8")
+        asyncio.create_task(
+            ctx.room.local_participant.publish_data(
+                msg, reliable=True, topic="transcript"
+            )
+        )
+    except Exception as e:
+        logger.debug(f"publish transcript failed (non-fatal): {e}")
