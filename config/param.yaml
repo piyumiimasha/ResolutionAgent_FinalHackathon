@@ -226,7 +226,7 @@ voice:
   # TTS — Deepgram Aura 2 (~200ms TTFB, same API key as STT)
   # Switch to elevenlabs for premium voices (requires ELEVEN_API_KEY)
   tts_provider: deepgram
-  tts_model: aura-2-en-us
+  tts_model: aura-asteria-en
   tts_voice_id: ""              # ElevenLabs only; blank for Deepgram
 
   # VAD (Silero — runs on device, no API call)

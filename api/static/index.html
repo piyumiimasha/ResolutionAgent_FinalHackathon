@@ -323,7 +323,7 @@
           <div class="vb-sub"   id="vb-sub">Speak your incident — transcript appears in the box below</div>
         </div>
       </div>
-      <button class="vb-end" onclick="stopVoice()">⏹ Stop</button>
+      <button class="vb-end" onclick="endVoiceCall()">⏹ End call</button>
     </div>
 
     <div class="messages" id="messages">
@@ -362,6 +362,16 @@
     </div>
 
 
+
+    <div class="panel-section" id="voice-stats-section" style="display:none">
+      <h3>Voice stats</h3>
+      <div class="vs-box">
+        <div class="vs-row"><span class="vs-lbl">First token</span>  <span class="vs-val" id="vs-ft">—</span></div>
+        <div class="vs-row"><span class="vs-lbl">Agent total</span>  <span class="vs-val" id="vs-at">—</span></div>
+        <div class="vs-row"><span class="vs-lbl">Voice turns</span>  <span class="vs-val" id="vs-turns">0</span></div>
+        <div class="vs-row"><span class="vs-lbl">Interruptions</span><span class="vs-val" id="vs-int">0</span></div>
+      </div>
+    </div>
 
     <div class="panel-section">
       <h3>Last ticket</h3>
@@ -453,108 +463,214 @@ async function sendMessage(){
   btn.disabled=false;$('msg-input').focus();
 }
 
-// ── Voice-to-text (Web Speech API) ────────────────────────────────────────
-// Flow: press 🎙️ → mic opens → transcript appears live in textarea →
-//       user reviews/edits → presses Send (or Enter) as normal.
-// No LiveKit needed for input. LiveKit is only used if agent speaks back via TTS.
+// ── Voice (LiveKit full duplex) ───────────────────────────────────────────
+// Flow: press 🎙️ → fetch token from /voice/token → join LiveKit room →
+//       speak → Deepgram STT → agent → Deepgram TTS plays back in browser →
+//       agent publishes transcript over data channel → appears in chat.
+// Barge-in: user speaks over agent → [interrupted] saved to memory.
 
-let recognition = null;
-let voiceActive  = false;
-let voiceFinal   = '';   // accumulates final segments
+let voiceActive    = false;
+let voiceRoom      = null;
+let voiceTurns     = 0;
+let voiceInterrupts= 0;
 
-function toggleVoice(){
-  voiceActive ? stopVoice() : startVoice();
+async function toggleVoice(){
+  voiceActive ? await endVoiceCall() : await startVoiceCall();
 }
 
-function startVoice(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){
-    appendError('Voice input is not supported in this browser. Use Chrome or Edge.');
+async function startVoiceCall(){
+  const vb = $('voice-btn');
+  vb.disabled = true;
+
+  // 1. Get LiveKit token + URL from FastAPI (reads .env server-side)
+  let token, lkUrl;
+  try {
+    const res = await fetch(apiUrl()+'/voice/token', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user_id:userId, room:'it-support-'+Date.now() }),
+    });
+    if(!res.ok) throw new Error('/voice/token returned '+res.status);
+    const d = await res.json();
+    token = d.token;
+    lkUrl = d.url;
+    if(!token) throw new Error('No token returned from /voice/token');
+    if(!lkUrl)  throw new Error('No LiveKit URL returned — check LIVEKIT_URL in .env');
+  } catch(err) {
+    appendError('Voice setup failed: '+err.message);
+    vb.disabled = false;
     return;
   }
 
-  recognition = new SR();
-  recognition.continuous     = true;   // keep listening until stopped
-  recognition.interimResults = true;   // show interim transcript while speaking
-  recognition.lang           = 'en-US';
-
-  const input = $('msg-input');
-  voiceFinal  = input.value;           // preserve any text already typed
-
-  recognition.onstart = () => {
-    voiceActive = true;
-    $('voice-btn').classList.add('on');
-    $('voice-btn').title = 'Stop recording';
-    $('voice-banner').classList.add('active');
-    $('dot-voice-wrap').style.display = 'flex';
-    $('vb-title').textContent = 'Listening...';
-    $('vb-sub').textContent   = 'Speak — transcript appears below';
-    const es=$('empty-state');if(es)es.remove();
-  };
-
-  recognition.onresult = (event) => {
-    let interim = '';
-    // Collect all results since last final
-    for(let i = event.resultIndex; i < event.results.length; i++){
-      const t = event.results[i][0].transcript;
-      if(event.results[i].isFinal){
-        voiceFinal += (voiceFinal && !voiceFinal.endsWith(' ') ? ' ' : '') + t.trim();
-      } else {
-        interim = t;
-      }
+  // 2. Load LiveKit browser SDK on demand
+  if(!window.LivekitClient) {
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js');
+    } catch {
+      appendError('Failed to load LiveKit SDK. Check your internet connection.');
+      vb.disabled = false;
+      return;
     }
-    // Show final + interim in the textarea so user sees live transcription
-    input.value = voiceFinal + (interim ? ' ' + interim : '');
-    // Auto-resize textarea
-    input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 130) + 'px';
-    // Update banner status
-    $('vb-title').textContent = interim ? 'Hearing you...' : 'Listening...';
-  };
+  }
 
-  recognition.onerror = (event) => {
-    if(event.error === 'not-allowed'){
-      appendError('Microphone access denied. Allow mic permission in your browser and try again.');
-    } else if(event.error !== 'aborted'){
-      appendError('Voice error: ' + event.error);
-    }
-    stopVoice();
-  };
-
-  recognition.onend = () => {
-    // Auto-restart if still active (browser stops after silence)
-    if(voiceActive) recognition.start();
-  };
-
+  // 3. Connect to LiveKit room
   try {
-    recognition.start();
-  } catch(e) {
-    appendError('Could not start microphone: ' + e.message);
+    const LC   = window.LivekitClient;
+    const room = new LC.Room({ adaptiveStream:true, dynacast:true });
+    voiceRoom  = room;
+
+    room.on(LC.RoomEvent.Connected, async () => {
+      voiceActive     = true;
+      voiceTurns      = 0;
+      voiceInterrupts = 0;
+      // Enable mic — audio goes to LiveKit → Deepgram STT on the worker
+      await room.localParticipant.setMicrophoneEnabled(true);
+      setVoiceUI(true);
+      setVoiceState('listening', 'Speak your IT incident');
+      sysMsg('🎙️ Voice call connected — speak your incident');
+      $('voice-stats-section').style.display = 'block';
+      vb.disabled = false;
+    });
+
+    room.on(LC.RoomEvent.Disconnected, () => {
+      if(voiceActive) {
+        sysMsg('📵 Voice call disconnected');
+        setVoiceUI(false);
+        voiceActive = false;
+      }
+      vb.disabled = false;
+    });
+
+    // Detect agent speaking / finished from TTS audio track
+    room.on(LC.RoomEvent.TrackSubscribed, (track) => {
+      if(track.kind === LC.Track.Kind.Audio) {
+        track.on('audioPlaybackStarted',  () => setVoiceState('speaking', 'Barge in to interrupt'));
+        track.on('audioPlaybackFinished', () => setVoiceState('listening', 'Speak your incident'));
+      }
+    });
+
+    // Data channel from agent worker:
+    //   topic="transcript" → show user/agent turns in chat
+    //   topic="latency"    → update voice stats panel
+    room.on(LC.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+      try {
+        const d = JSON.parse(new TextDecoder().decode(payload));
+
+        if(topic === 'transcript') {
+          if(d.role === 'user') {
+            appendVoiceMsg('user', d.text, false);
+          } else if(d.role === 'agent') {
+            appendVoiceMsg('agent', d.text, !!d.interrupted);
+            if(d.interrupted) {
+              voiceInterrupts++;
+              $('vs-int').textContent = voiceInterrupts;
+            }
+            addLog(true, {}, 'agent');
+          }
+        }
+
+        if(topic === 'latency') handleLatencyHUD(d);
+
+      } catch(e) { /* ignore malformed */ }
+    });
+
+    await room.connect(lkUrl, token);
+
+  } catch(err) {
+    appendError('Voice connection failed: '+err.message);
+    voiceRoom   = null;
+    voiceActive = false;
+    setVoiceUI(false);
+    vb.disabled = false;
   }
 }
 
-function stopVoice(){
+async function endVoiceCall(){
+  if(voiceRoom) {
+    try { await voiceRoom.disconnect(); } catch {}
+    voiceRoom = null;
+  }
   voiceActive = false;
-  if(recognition){
-    recognition.onend = null;   // prevent auto-restart
-    recognition.stop();
-    recognition = null;
-  }
-  $('voice-btn').classList.remove('on');
-  $('voice-btn').title = 'Start voice input';
-  $('voice-banner').classList.remove('active');
-  $('dot-voice-wrap').style.display = 'none';
-  // Leave the transcript in the textarea so user can send it
-  const input = $('msg-input');
-  input.style.height = '';
-  input.focus();
-  // Move cursor to end
-  input.selectionStart = input.selectionEnd = input.value.length;
+  setVoiceUI(false);
+  sysMsg('📵 Voice call ended');
 }
 
-// stub — kept so existing references don't break
-function setVoiceState(){}
-function handleLatencyHUD(){}
+function setVoiceUI(on){
+  const vb = $('voice-btn');
+  if(on) {
+    vb.classList.add('on');
+    vb.title = 'End voice call';
+    $('voice-banner').classList.add('active');
+    $('input-wrap').classList.add('vm');
+    $('msg-input').disabled  = true;
+    $('send-btn').disabled   = true;
+    $('dot-voice-wrap').style.display = 'flex';
+    const es = $('empty-state'); if(es) es.remove();
+  } else {
+    vb.classList.remove('on');
+    vb.title = 'Start voice call';
+    $('voice-banner').classList.remove('active');
+    $('input-wrap').classList.remove('vm');
+    $('msg-input').disabled  = false;
+    $('send-btn').disabled   = false;
+    $('dot-voice-wrap').style.display = 'none';
+    setVoiceState(null);
+  }
+}
+
+function setVoiceState(state, sub){
+  const orb   = $('vorb');
+  const title = $('vb-title');
+  const subt  = $('vb-sub');
+  orb.className = 'vorb';
+  if(state === 'listening') {
+    orb.classList.add('listening'); orb.textContent = '🎙️';
+    title.textContent = 'Listening...'; subt.textContent = sub||'';
+  } else if(state === 'speaking') {
+    orb.classList.add('speaking'); orb.textContent = '🔊';
+    title.textContent = 'Agent speaking'; subt.textContent = sub||'';
+  } else {
+    orb.textContent = '🎙️'; title.textContent = ''; subt.textContent = '';
+  }
+}
+
+function handleLatencyHUD(d){
+  voiceTurns++;
+  $('vs-turns').textContent = voiceTurns;
+  if(d.first_token_ms != null){
+    const el = $('vs-ft');
+    el.textContent = d.first_token_ms+'ms';
+    el.className   = 'vs-val '+(d.first_token_ms < 2000 ? 'g' : 'w');
+  }
+  if(d.agent_total_ms != null)
+    $('vs-at').textContent = d.agent_total_ms+'ms';
+}
+
+function appendVoiceMsg(role, text, interrupted){
+  const msgs = $('messages');
+  const div  = document.createElement('div');
+  div.className = 'msg '+role+' vm'+(interrupted?' vi':'');
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  if(role === 'user'){
+    meta.innerHTML =
+      '<span style="color:var(--text2);font-weight:600">'+esc(userId)+'</span>'+
+      '<span>&middot;</span><span>'+ts()+'</span>'+
+      '<span class="vtag">🎙️ voice</span>';
+  } else {
+    meta.innerHTML =
+      '<span style="color:var(--voice);font-weight:700">🤖 AGENT</span>'+
+      '<span>&middot;</span><span>'+ts()+'</span>'+
+      '<span class="vtag">🔊 voice</span>'+
+      (interrupted ? '<span class="itag">⚡ interrupted</span>' : '');
+  }
+  const bubble = document.createElement('div');
+  bubble.className  = 'msg-bubble';
+  bubble.textContent = text;
+  div.appendChild(meta);
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
 
 // ── DOM helpers ────────────────────────────────────────────────────────────
 function appendMsg(role,text,data,isFu){

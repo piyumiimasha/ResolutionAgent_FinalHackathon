@@ -48,7 +48,7 @@ load_dotenv(find_dotenv(usecwd=True))
 from livekit.agents import JobContext, WorkerOptions, cli
 from loguru import logger
 
-from infastructure.log import setup_logging
+from infrastructure.log import configure_logging
 from voice.agent import create_and_start_agent
 from voice.config import load_voice_config, validate_voice_env
 
@@ -59,7 +59,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 def main() -> None:
-    setup_logging()
+    configure_logging()
     cfg = load_voice_config()
 
     print()
