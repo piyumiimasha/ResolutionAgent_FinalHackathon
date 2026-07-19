@@ -31,21 +31,21 @@ jobs:
       - name: Build and push API image
         run: |
           docker build -f Dockerfile.api \
-            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
-            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:latest \
+            -t ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:${{ github.sha }} \
+            -t ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:latest \
             .
-          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }}
-          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:latest
+          docker push ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:${{ github.sha }}
+          docker push ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:latest
 
       # ── 5. Build and push Voice Worker image ───────────────────────────────
       - name: Build and push Voice Worker image
         run: |
           docker build -f Dockerfile.voice \
-            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
-            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:latest \
+            -t ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:${{ github.sha }} \
+            -t ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:latest \
             .
-          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }}
-          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:latest
+          docker push ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:${{ github.sha }}
+          docker push ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:latest
 
       # ── 6. Pull secrets from Key Vault ─────────────────────────────────────
       - name: Pull secrets from Key Vault
@@ -72,15 +72,15 @@ jobs:
         run: |
           # Try update first, create if it doesn't exist yet
           az containerapp update \
-            --name zuu-crew-api \
+            --name resolutionagent-api \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:${{ github.sha }} \
           || \
           az containerapp create \
-            --name zuu-crew-api \
+            --name resolutionagent-api \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --environment ${{ secrets.AZURE_CONTAINER_ENV }} \
-            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-api:${{ github.sha }} \
             --registry-server ${{ env.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }} \
@@ -107,15 +107,15 @@ jobs:
       - name: Deploy Voice Worker to Container Apps
         run: |
           az containerapp update \
-            --name zuu-crew-voice \
+            --name resolutionagent-voice \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:${{ github.sha }} \
           || \
           az containerapp create \
-            --name zuu-crew-voice \
+            --name resolutionagent-voice \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --environment ${{ secrets.AZURE_CONTAINER_ENV }} \
-            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/resolutionagent-voice:${{ github.sha }} \
             --registry-server ${{ env.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }} \
@@ -139,7 +139,7 @@ jobs:
       - name: Print live API URL
         run: |
           URL=$(az containerapp show \
-            --name zuu-crew-api \
+            --name resolutionagent-api \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn \
             --output tsv)
