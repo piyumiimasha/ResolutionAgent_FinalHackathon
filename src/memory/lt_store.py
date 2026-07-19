@@ -54,21 +54,23 @@ class LTStore:
     def __init__(self):
         self._sb = _get_supabase()
 
-    async def store_fact(self, fact: MemoryFact) -> None:
+    async def store_fact(self, fact: MemoryFact, user_id: str = "") -> None:
         """
         Embed and store a durable fact in pgvector.
 
         Args:
             fact: MemoryFact dict with fact text, confidence, category, source.
+            user_id: ID of the user who owns this fact.
         """
         try:
             embedding = await get_embedding(fact["fact"])
             self._sb.table(TABLE).insert({
                 "fact":       fact["fact"],
-                "embedding":  json.dumps(embedding),   # pgvector accepts JSON array
+                "embedding":  json.dumps(embedding),
                 "confidence": fact["confidence"],
                 "category":   fact.get("category", "pattern"),
                 "source":     fact.get("source", ""),
+                "user_id":    user_id,                          # ← add this
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }).execute()
             logger.debug("LTStore stored fact: {:.80s}...", fact["fact"])
@@ -76,7 +78,7 @@ class LTStore:
         except Exception as exc:
             logger.error("LTStore.store_fact failed: {}", exc)
 
-    async def search(self, query: str, top_k: int = 5) -> list[MemoryFact]:
+    async def search(self, query: str, top_k: int = 5, user_id: str = "") -> list[MemoryFact]:
         """
         Semantic search over long-term facts using pgvector cosine similarity.
 
@@ -98,6 +100,7 @@ class LTStore:
                     "query_embedding": embedding_str,
                     "match_threshold": SIMILARITY_THRESHOLD,
                     "match_count":     top_k,
+                    "filter_user_id":  user_id or None,
                 },
             ).execute()
 
@@ -116,7 +119,7 @@ class LTStore:
             logger.error("LTStore.search failed for query '{}': {}", query[:50], exc)
             return []
 
-    async def store_many(self, facts: list[MemoryFact]) -> None:
+    async def store_many(self, facts: list[MemoryFact], user_id: str = "") -> None:
         """Batch store multiple facts. Called by Distiller after a session."""
         for fact in facts:
-            await self.store_fact(fact)
+            await self.store_fact(fact, user_id=user_id)

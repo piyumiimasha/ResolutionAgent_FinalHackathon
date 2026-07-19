@@ -60,7 +60,12 @@ async def write_back_node(state: AgentState) -> AgentState:
 
             # 2. Distill durable facts to long-term memory
             distiller = Distiller()
-            await distiller.distill(state.get("conversation_history", []))
+            await distiller.distill(
+                turns      = state.get("conversation_history", []),
+                resolution = state.get("resolution", ""),
+                source     = state["ticket_id"],
+                user_id    = state.get("user_id", ""),
+            )
 
             # 3. Update CAG cache with this resolution
             # Only cache if resolution exists and no error occurred

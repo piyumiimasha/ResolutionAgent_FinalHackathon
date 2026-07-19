@@ -58,6 +58,7 @@ class Distiller:
         turns:      list[ConversationTurn],
         resolution: str = "",
         source:     str = "",
+        user_id:   str = "",
     ) -> list[MemoryFact]:
         """
         Extract and store durable facts from a resolved conversation.
@@ -72,11 +73,20 @@ class Distiller:
         """
         if not turns:
             return []
+        
+        # ADD this block
+        meaningful_turns = [
+            t for t in turns
+            if t.get("role") in ("user", "agent", "l3_resolver")
+        ]
+        if not meaningful_turns:
+            return []
+
 
         # ── Format conversation for LLM ───────────────────────────────
         conversation_text = "\n".join([
             f"{t['role'].upper()}: {t['content']}"
-            for t in turns
+            for t in meaningful_turns
         ])
 
         try:
@@ -131,7 +141,7 @@ class Distiller:
             )
 
             if fact["fact"]:
-                await self._lt.store_fact(fact)
+                await self._lt.store_fact(fact, user_id=user_id)
                 stored_facts.append(fact)
                 logger.debug(
                     "Distiller stored fact [{} {:.0%}]: {:.80s}",

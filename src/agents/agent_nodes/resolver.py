@@ -39,7 +39,8 @@ async def _close_ticket_in_db(state: AgentState, resolution: str, runbook: str) 
         logger.error("L3 failed to close ticket in Supabase: %s", exc)
 
 
-async def _execute_action_mcp(action_plan: str, ticket_type: int, severity: str) -> str:
+async def _execute_action_mcp(action_plan: str, ticket_type: int, severity: str,
+                               ticket_id: str = "", user_id: str = "") -> str:
     """
     Calls the Action MCP server to execute the proposed fix.
     Returns a string describing what was executed.
@@ -52,7 +53,10 @@ async def _execute_action_mcp(action_plan: str, ticket_type: int, severity: str)
             action      = action_plan,
             ticket_type = ticket_type,
             severity    = severity,
+            ticket_id   = ticket_id,
+            user_id     = user_id,
         )
+
         return result or "Action executed."
     except Exception as exc:
         logger.error("Action MCP execution failed: %s", exc)
@@ -123,13 +127,13 @@ async def l3_resolver_node(state: AgentState) -> AgentState:
                 summary      = raw[:120]
 
             # ── 4. Execute via Action MCP ─────────────────────────────
-            action_result = ""
-            if action_str:
-                action_result = await _execute_action_mcp(
-                    action_plan = action_str,
-                    ticket_type = state.get("ticket_type", 1),
-                    severity    = state.get("severity", "low"),
-                )
+            action_result = await _execute_action_mcp(
+                action_plan = action_str,
+                ticket_type = state.get("ticket_type", 1),
+                severity    = state.get("severity", "low"),
+                ticket_id   = state.get("ticket_id", ""),
+                user_id     = state.get("user_id", ""),
+        )
 
             # ── 5. Final user-facing resolution ───────────────────────
             final_resolution = user_message

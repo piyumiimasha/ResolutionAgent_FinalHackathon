@@ -51,7 +51,7 @@ class STStore:
     def __init__(self):
         self._sb = _get_supabase()
 
-    async def add_turn(self, ticket_id: str, role: str, content: str) -> None:
+    async def add_turn(self, ticket_id: str, role: str, content: str, user_id: str = "") -> None:
         """
         Append one turn to short-term memory.
         Automatically trims oldest turns if count exceeds MAX_TURNS.
@@ -68,6 +68,7 @@ class STStore:
                 "role":      role,
                 "content":   content,
                 "timestamp": now,
+                "user_id":   user_id,
             }).execute()
 
             await self._trim(ticket_id)

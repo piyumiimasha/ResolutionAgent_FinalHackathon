@@ -76,9 +76,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
         # ── Save both user message and response to ST memory ──────────
         tid = final_state.get("ticket_id", "")
-        await st.add_turn(tid, "user",  request.message)
+        await st.add_turn(tid, "user",  request.message, user_id=request.user_id or "")
         if final_state.get("resolution"):
-            await st.add_turn(tid, "agent", final_state["resolution"])
+            await st.add_turn(tid, "agent", final_state["resolution"], user_id=request.user_id or "")
 
         response = _state_to_response(final_state)
         logger.info(
@@ -117,9 +117,9 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             )
 
             tid = final_state.get("ticket_id", "")
-            await st.add_turn(tid, "user",  request.message)
+            await st.add_turn(tid, "user",  request.message, user_id=request.user_id or "")
             if final_state.get("resolution"):
-                await st.add_turn(tid, "agent", final_state["resolution"])
+                await st.add_turn(tid, "agent", final_state["resolution"], user_id=request.user_id or "")
 
             if final_state.get("cag_hit"):
                 yield _sse("update", "Cache hit — instant answer retrieved")
