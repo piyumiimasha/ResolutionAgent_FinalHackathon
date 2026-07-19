@@ -119,7 +119,6 @@ jobs:
             --registry-server ${{ env.ACR_LOGIN_SERVER }} \
             --registry-username ${{ secrets.ACR_USERNAME }} \
             --registry-password ${{ secrets.ACR_PASSWORD }} \
-            --ingress none \
             --min-replicas 1 \
             --max-replicas 1 \
             --env-vars \
