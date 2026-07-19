@@ -1,0 +1,79 @@
+# ── Deployment requirements (slim) ────────────────────────────────────────────
+# Excludes: torch, cuda, spacy, jupyter, notebook, matplotlib, scipy
+# These are only needed for local development/notebooks, not production runtime.
+
+# ── Core LLM ──────────────────────────────────────────────────────────────────
+openai>=1.12.0
+anthropic>=0.18.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+langchain-openai>=0.0.5
+langchain-text-splitters>=0.2.0
+langgraph>=0.0.30
+langchain-groq>=0.1.0
+
+# ── MCP ───────────────────────────────────────────────────────────────────────
+mcp>=1.27.0
+fastmcp>=3.0.0
+langchain-mcp-adapters>=0.2.2
+
+# ── Web search ────────────────────────────────────────────────────────────────
+tavily-python>=0.3.0
+
+# ── Vector store ──────────────────────────────────────────────────────────────
+supabase>=2.3.0
+psycopg2-binary>=2.9.9
+pgvector>=0.2.4
+qdrant-client>=1.9.0
+
+# ── Text processing ───────────────────────────────────────────────────────────
+tiktoken>=0.5.2
+nltk>=3.8.1
+
+# ── Config and environment ────────────────────────────────────────────────────
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+pyyaml>=6.0
+typing-extensions>=4.9.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+tqdm>=4.66.0
+pandas>=2.2.0
+numpy>=1.26.0
+requests>=2.31.0
+aiohttp>=3.9.0
+
+# ── Memory and reminders ──────────────────────────────────────────────────────
+sqlalchemy>=2.0.0
+apscheduler>=3.10.0
+pytz>=2024.1
+python-dateutil>=2.8.0
+
+# ── Observability ─────────────────────────────────────────────────────────────
+langfuse>=2.0.0
+loguru>=0.7.0
+
+# ── API server ────────────────────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+sse-starlette>=1.8.0
+starlette>=0.36.0
+
+# ── Voice pipeline ────────────────────────────────────────────────────────────
+livekit>=1.0.0
+livekit-agents>=1.5.0
+livekit-plugins-deepgram>=1.5.0
+livekit-plugins-elevenlabs>=1.5.0
+livekit-plugins-silero>=1.5.0
+deepgram-sdk>=6.0.0
+onnxruntime>=1.17.0
+
+# ── Background worker ─────────────────────────────────────────────────────────
+arq>=0.26.0
+redis>=5.0.0
+
+# ── Azure ─────────────────────────────────────────────────────────────────────
+azure-storage-blob==12.22.0
+azure-core==1.32.0
