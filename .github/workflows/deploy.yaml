@@ -1,0 +1,147 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+
+env:
+  ACR_LOGIN_SERVER: ${{ secrets.ACR_NAME }}.azurecr.io
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Log in to Azure ─────────────────────────────────────────────────
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── 3. Log in to ACR ───────────────────────────────────────────────────
+      - name: Log in to ACR
+        run: |
+          az acr login --name ${{ secrets.ACR_NAME }}
+
+      # ── 4. Build and push API image ────────────────────────────────────────
+      - name: Build and push API image
+        run: |
+          docker build -f Dockerfile.api \
+            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
+            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:latest \
+            .
+          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }}
+          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:latest
+
+      # ── 5. Build and push Voice Worker image ───────────────────────────────
+      - name: Build and push Voice Worker image
+        run: |
+          docker build -f Dockerfile.voice \
+            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
+            -t ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:latest \
+            .
+          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }}
+          docker push ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:latest
+
+      # ── 6. Pull secrets from Key Vault ─────────────────────────────────────
+      - name: Pull secrets from Key Vault
+        run: |
+          KV=${{ secrets.AZURE_KEYVAULT_NAME }}
+          get() { az keyvault secret show --vault-name $KV --name $1 --query value -o tsv; }
+
+          echo "OPENAI_API_KEY=$(get OPENAI-API-KEY)"                           >> $GITHUB_ENV
+          echo "DEEPGRAM_API_KEY=$(get DEEPGRAM-API-KEY)"                       >> $GITHUB_ENV
+          echo "LIVEKIT_API_KEY=$(get LIVEKIT-API-KEY)"                         >> $GITHUB_ENV
+          echo "LIVEKIT_API_SECRET=$(get LIVEKIT-API-SECRET)"                   >> $GITHUB_ENV
+          echo "LIVEKIT_URL=$(get LIVEKIT-URL)"                                 >> $GITHUB_ENV
+          echo "SUPABASE_URL=$(get SUPABASE-URL)"                               >> $GITHUB_ENV
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(get SUPABASE-SERVICE-ROLE-KEY)"     >> $GITHUB_ENV
+          echo "GROQ_API_KEY=$(get GROQ-API-KEY)"                               >> $GITHUB_ENV
+          echo "LANGFUSE_SECRET_KEY=$(get LANGFUSE-SECRET-KEY)"                 >> $GITHUB_ENV
+          echo "LANGFUSE_PUBLIC_KEY=$(get LANGFUSE-PUBLIC-KEY)"                 >> $GITHUB_ENV
+          echo "LANGFUSE_BASE_URL=$(get LANGFUSE-BASE-URL)"                     >> $GITHUB_ENV
+          echo "QDRANT_URL=$(get QDRANT-URL)"                                   >> $GITHUB_ENV
+          echo "QDRANT_API_KEY=$(get QDRANT-API-KEY)"                           >> $GITHUB_ENV
+
+      # ── 7. Deploy API Container App ────────────────────────────────────────
+      - name: Deploy API to Container Apps
+        run: |
+          # Try update first, create if it doesn't exist yet
+          az containerapp update \
+            --name zuu-crew-api \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
+          || \
+          az containerapp create \
+            --name zuu-crew-api \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --environment ${{ secrets.AZURE_CONTAINER_ENV }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-api:${{ github.sha }} \
+            --registry-server ${{ env.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --target-port 8000 \
+            --ingress external \
+            --min-replicas 1 \
+            --max-replicas 3 \
+            --env-vars \
+              OPENAI_API_KEY="${{ env.OPENAI_API_KEY }}" \
+              DEEPGRAM_API_KEY="${{ env.DEEPGRAM_API_KEY }}" \
+              LIVEKIT_API_KEY="${{ env.LIVEKIT_API_KEY }}" \
+              LIVEKIT_API_SECRET="${{ env.LIVEKIT_API_SECRET }}" \
+              LIVEKIT_URL="${{ env.LIVEKIT_URL }}" \
+              SUPABASE_URL="${{ env.SUPABASE_URL }}" \
+              SUPABASE_SERVICE_ROLE_KEY="${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+              GROQ_API_KEY="${{ env.GROQ_API_KEY }}" \
+              LANGFUSE_SECRET_KEY="${{ env.LANGFUSE_SECRET_KEY }}" \
+              LANGFUSE_PUBLIC_KEY="${{ env.LANGFUSE_PUBLIC_KEY }}" \
+              LANGFUSE_BASE_URL="${{ env.LANGFUSE_BASE_URL }}" \
+              QDRANT_URL="${{ env.QDRANT_URL }}" \
+              QDRANT_API_KEY="${{ env.QDRANT_API_KEY }}"
+
+      # ── 8. Deploy Voice Worker Container App ───────────────────────────────
+      - name: Deploy Voice Worker to Container Apps
+        run: |
+          az containerapp update \
+            --name zuu-crew-voice \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
+          || \
+          az containerapp create \
+            --name zuu-crew-voice \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --environment ${{ secrets.AZURE_CONTAINER_ENV }} \
+            --image ${{ env.ACR_LOGIN_SERVER }}/zuu-crew-voice:${{ github.sha }} \
+            --registry-server ${{ env.ACR_LOGIN_SERVER }} \
+            --registry-username ${{ secrets.ACR_USERNAME }} \
+            --registry-password ${{ secrets.ACR_PASSWORD }} \
+            --ingress none \
+            --min-replicas 1 \
+            --max-replicas 1 \
+            --env-vars \
+              DEEPGRAM_API_KEY="${{ env.DEEPGRAM_API_KEY }}" \
+              LIVEKIT_API_KEY="${{ env.LIVEKIT_API_KEY }}" \
+              LIVEKIT_API_SECRET="${{ env.LIVEKIT_API_SECRET }}" \
+              LIVEKIT_URL="${{ env.LIVEKIT_URL }}" \
+              SUPABASE_URL="${{ env.SUPABASE_URL }}" \
+              SUPABASE_SERVICE_ROLE_KEY="${{ env.SUPABASE_SERVICE_ROLE_KEY }}" \
+              GROQ_API_KEY="${{ env.GROQ_API_KEY }}" \
+              LANGFUSE_SECRET_KEY="${{ env.LANGFUSE_SECRET_KEY }}" \
+              LANGFUSE_PUBLIC_KEY="${{ env.LANGFUSE_PUBLIC_KEY }}" \
+              LANGFUSE_BASE_URL="${{ env.LANGFUSE_BASE_URL }}" \
+              QDRANT_URL="${{ env.QDRANT_URL }}" \
+              QDRANT_API_KEY="${{ env.QDRANT_API_KEY }}"
+
+      # ── 9. Print live URL ──────────────────────────────────────────────────
+      - name: Print live API URL
+        run: |
+          URL=$(az containerapp show \
+            --name zuu-crew-api \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv)
+          echo "✅ Live URL: https://$URL"
