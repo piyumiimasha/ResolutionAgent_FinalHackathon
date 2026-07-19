@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    libpq-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies first (layer caching)
@@ -15,14 +17,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project files
 COPY src/ ./src/
+COPY api/ ./api/
 COPY config/ ./config/
 COPY runbooks/ ./runbooks/
-COPY src/api/static/index.html ./src/api/static/index.html
 
-# Set PYTHONPATH so imports work
-ENV PYTHONPATH=/app/src
-
-WORKDIR /app/src
+# Set PYTHONPATH — src/ for agent modules, /app for api/ at root
+ENV PYTHONPATH=/app/src:/app
 
 EXPOSE 8000
 
