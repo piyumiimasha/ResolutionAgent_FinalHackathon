@@ -252,22 +252,21 @@ class AgentOrchestrator:
         session_id: str,
     ) -> AsyncGenerator[tuple[str, object], None]:
         """
-        Voice path — routes through the full decision graph.
-
-        Goes through: guardrail → CAG router → (hit: return) → L1→L2→L3 swarm
-        Same path as the text /chat endpoint so voice gets correct IT support
-        answers from runbooks, CAG cache, and the full agent pipeline.
+        Voice fast-path: stream tokens directly from a single LLM call.
 
         Yields
         ------
-        ("token",   str)     — each word as it arrives (split from final answer)
-        ("partial", str)     — running concatenation
-        ("final",   object)  — response object with route/tier metadata
+        ("token",   str)     — each incremental token as it arrives
+        ("partial", str)     — running concatenation of tokens emitted so far
+        ("final",   object)  — simple response object after the last token
 
         On asyncio.CancelledError (barge-in):
-            Saves partial to ST memory tagged "[interrupted]" and re-raises.
+            Saves the partial answer to ShortTermMemoryStore with the
+            "[interrupted]" suffix, then re-raises CancelledError so the
+            voice adapter knows the task ended early.
+            Unsaid content is NEVER saved.
         """
-        # Save user turn to ST memory
+        # Save the user turn to short-term memory
         try:
             self.st_store.append(
                 ConversationTurn(
@@ -283,50 +282,25 @@ class AgentOrchestrator:
         except Exception as e:
             logger.warning(f"ST save (user turn) failed (non-fatal): {e}")
 
+        messages = [
+            SystemMessage(content=_VOICE_SYSTEM_PROMPT),
+            HumanMessage(content=user_message),
+        ]
+
         spoken_parts: list[str] = []
 
         try:
-            # Run the full decision graph — same as /chat endpoint
-            from agents.decision_graph import process_ticket
-
-            final_state = await process_ticket(
-                ticket=user_message,
-                user_id=user_id,
-                existing_ticket_id=session_id if session_id.startswith("voice-") else None,
-                conversation_history=[],
-            )
-
-            # Extract answer
-            answer = (
-                final_state.get("resolution")
-                or final_state.get("cag_answer")
-                or ""
-            ).strip()
-
-            if not answer:
-                answer = (
-                    "I wasn't able to resolve that right now. "
-                    "Please try again or contact a human technician."
-                )
-
-            # Check if guardrail blocked it
-            if not final_state.get("is_safe", True):
-                answer = (
-                    final_state.get("guardrail_reason")
-                    or "I can only help with IT support issues. Please describe your technical incident."
-                )
-
-            # Stream answer word by word so TTS starts immediately
-            words = answer.split()
-            for i, word in enumerate(words):
-                token = word + (" " if i < len(words) - 1 else "")
+            async for chunk in self.llm_fast.astream(messages):
+                token: str = chunk.content or ""
+                if not token:
+                    continue
                 spoken_parts.append(token)
                 yield ("token", token)
                 yield ("partial", "".join(spoken_parts))
 
             full_answer = "".join(spoken_parts).strip()
 
-            # Save assistant turn to ST memory
+            # Save completed assistant turn to short-term memory
             try:
                 self.st_store.append(
                     ConversationTurn(
@@ -342,14 +316,11 @@ class AgentOrchestrator:
             except Exception as e:
                 logger.warning(f"ST save (assistant turn) failed (non-fatal): {e}")
 
-            yield ("final", _VoiceResponse(
-                answer=full_answer,
-                route="cag" if final_state.get("cag_hit") else "swarm",
-                tier=f"L{final_state.get('ticket_type', '?')}",
-            ))
+            # Simple response object — voice adapter reads .route and .tier
+            yield ("final", _VoiceResponse(answer=full_answer))
 
         except asyncio.CancelledError:
-            # Barge-in: save only what was spoken, tagged [interrupted]
+            # ── Barge-in: save only what was spoken, tagged [interrupted] ──
             partial = "".join(spoken_parts).strip()
             if partial:
                 try:
@@ -370,27 +341,15 @@ class AgentOrchestrator:
                     )
                 except Exception as e:
                     logger.warning(f"ST save ([interrupted] partial) failed (non-fatal): {e}")
-            raise
-
-        except Exception as e:
-            logger.error(f"Voice decision graph failed: {e}")
-            # Fallback to fast LLM so user doesn't get dead air
-            fallback = (
-                "I'm having trouble processing that right now. "
-                "Could you please repeat your incident?"
-            )
-            for word in fallback.split():
-                yield ("token", word + " ")
-                yield ("partial", fallback)
-            yield ("final", _VoiceResponse(answer=fallback, route="fallback", tier="?"))
+            raise  # Must re-raise so voice adapter logs it correctly
 
 
 class _VoiceResponse:
     """Minimal response object yielded as the 'final' tuple payload."""
-    def __init__(self, answer: str, route: str = "swarm", tier: str = "?") -> None:
+    def __init__(self, answer: str) -> None:
         self.answer = answer
-        self.route  = route
-        self.tier   = tier
+        self.route = "voice_fast"
+        self.tier = "L1"
 
 
 # ── Factory function called by voice/agent.py ─────────────────────────────────
