@@ -63,22 +63,32 @@ Three sequential LangGraph nodes share a single `AgentState` TypedDict:
 ## Voice Pipeline
 
 ```
-Browser mic → Web Speech API (live transcript in chat)
-                    │
-              User reviews transcript
-                    │
-              Same /chat endpoint
-                    │
-              Decision Graph → answer displayed as text
+Browser mic → LiveKit Room → Deepgram STT (Nova-3)
+                                    │
+                          LangGraphLLMAdapter
+                                    │
+                    AgentOrchestrator.achat_stream_fast()
+                      (Groq llama-3.3-70b, direct stream)
+                                    │
+                          Deepgram TTS (aura-asteria-en)
+                                    │
+                    LiveKit Room → Browser speaker
+                                    │
+                    Data channel (topic="transcript")
+                                    │
+                         Transcript displayed in chat UI
 ```
 
-The voice button provides **speech-to-text input** — spoken words are transcribed live in the chat window using the browser's Web Speech API. The transcript is processed through the same decision graph as typed input. The agent's answer is returned as text and displayed in the chat, identical to the text path.
+The voice button connects the browser to a LiveKit room. A separate voice worker process handles the full pipeline: Deepgram Nova-3 transcribes speech in real time, the LangGraph adapter calls `achat_stream_fast()` on the orchestrator, and Deepgram TTS converts the answer to audio played back through the browser speaker. Transcripts for both user and agent turns are published over the LiveKit data channel and displayed in the chat window.
 
 This means:
-- No separate voice worker process needed for input
-- Works in Chrome and Edge (Web Speech API support required)
-- Same guardrail → CAG → L1→L2→L3 pipeline as text
-- Follow-ups work the same way — ticket thread is maintained across voice turns
+
+- Voice worker must be running alongside the API server (`python -m voice.run start`)
+- Requires Chrome or Edge with microphone permission granted
+- Uses a fast-path direct Groq LLM stream — not the full L1→L2→L3 swarm — to keep first-token latency under 2 seconds
+- Short-term memory context (last 6 turns) is loaded before each voice turn for follow-up support
+- Silero VAD detects barge-in — partial responses are saved to memory tagged `[interrupted]`
+- Latency metrics (first_token_ms, agent_total_ms) published to the UI via LiveKit data channel
 
 ---
 
@@ -211,6 +221,13 @@ or:
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+Start the voice worker in a separate terminal (required for 🎙️ voice calls):
+
+```bash
+cd src
+python -m voice.run start
+```
+
 Then open:
 
 - `http://localhost:8000/` for the UI
@@ -292,5 +309,6 @@ ResolutionAgent_FinalHackathon/
 - The app reads most behavioural tuning from `config/param.yaml`.
 - Startup checks Supabase, Qdrant, and Azure Blob connections and logs degraded services.
 - The `infastructure/` folder spelling is intentional — all imports use this spelling consistently.
-- Voice input uses the browser's Web Speech API for speech-to-text. The transcript is processed through the same decision graph as typed input — no separate voice worker needed.
-- The `src/voice/` module contains a full LiveKit + Deepgram STT/TTS pipeline implementation for future two-way voice support.
+- Voice input uses LiveKit + Deepgram STT for real-time transcription. The voice worker (`src/voice/`) must be running separately for voice calls to work.
+- Voice uses a fast-path (direct Groq LLM stream) rather than the full swarm to maintain sub-2s perceived latency. The text path runs the full L1→L2→L3 pipeline.
+- Barge-in is supported via Silero VAD. Interrupted responses are saved to memory tagged `[interrupted]`.
