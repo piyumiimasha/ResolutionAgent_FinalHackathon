@@ -272,6 +272,7 @@ class AgentOrchestrator:
             Unsaid content is NEVER saved.
         """
         # Save the user turn to short-term memory
+        # Save the user turn to short-term memory
         try:
             self.st_store.append(
                 ConversationTurn(
@@ -287,11 +288,35 @@ class AgentOrchestrator:
         except Exception as e:
             logger.warning(f"ST save (user turn) failed (non-fatal): {e}")
 
+        # Load recent history for follow-up context
+        history_text = ""
+        try:
+            turns = self.st_store.recent(
+                user_id=user_id,
+                session_id=session_id,
+                k=6,
+            )
+            if turns:
+                history_text = "\n".join([
+                    f"{t.role.upper()}: {t.content}"
+                    for t in turns
+                ])
+        except Exception as e:
+            logger.warning(f"ST recall failed (non-fatal): {e}")
+
+        # Include history in prompt if this is a follow-up turn
+        if history_text:
+            user_content = (
+                f"CONVERSATION SO FAR:\n{history_text}\n\n"
+                f"NEW MESSAGE: {user_message}"
+            )
+        else:
+            user_content = user_message
+
         messages = [
             SystemMessage(content=_VOICE_SYSTEM_PROMPT),
-            HumanMessage(content=user_message),
+            HumanMessage(content=user_content),
         ]
-
         spoken_parts: list[str] = []
 
         try:
