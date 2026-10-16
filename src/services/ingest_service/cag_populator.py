@@ -24,8 +24,8 @@ from qdrant_client.models import (
 from loguru import logger
 from dotenv import load_dotenv
 
-from src.infrastructure.llm.embeddings import get_embedding
-from src.infrastructure.config import get_config, get_embedding_dimensions
+from infrastructure.llm.embeddings import get_embedding
+from infrastructure.config import get_config, get_embedding_dimensions, get_groq_model
 
 load_dotenv()
 
@@ -34,7 +34,7 @@ QDRANT_URL        = os.getenv("QDRANT_URL")
 QDRANT_API_KEY    = os.getenv("QDRANT_API_KEY")
 SOURCE_COLLECTION = "procedural_memory"
 CAG_COLLECTION    = "cag_cache"
-GROQ_MODEL        = "llama-3.1-8b-instant"
+GROQ_MODEL        = get_groq_model("small")
 SCROLL_LIMIT      = 100
 
 
@@ -132,36 +132,37 @@ async def _generate_answer(
     client: AsyncGroq,
     cluster_label: str,
     records: list[dict],
+    max_attempts: int = 3,
 ) -> str:
-    """
-    Generate a canonical FAQ answer for a cluster via Groq.
-
-    Args:
-        client:        AsyncGroq client.
-        cluster_label: Cluster name for logging.
-        records:       Matching records (up to 5 used as examples).
-
-    Returns:
-        Generated answer string.
-    """
     examples = "\n\n".join([
         f"Problem: {r.get('problem', '')}\nResolution: {r.get('resolution', '')}"
         for r in records[:5]
     ])
+    prompt = CAG_ANSWER_PROMPT.format(count=len(records), examples=examples)
+    logger.debug("Examples for '{}':\n{}", cluster_label, examples[:500])
 
-    response = await client.chat.completions.create(
-        model       = GROQ_MODEL,
-        messages    = [{
-            "role":    "user",
-            "content": CAG_ANSWER_PROMPT.format(
-                count    = len(records),
-                examples = examples,
-            ),
-        }],
-        temperature = 0.3,
-        max_tokens  = 200,
-    )
-    return response.choices[0].message.content.strip()
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = await client.chat.completions.create(
+                model       = GROQ_MODEL,
+                messages    = [{"role": "user", "content": prompt}],
+                temperature = 0.3,
+                max_tokens  = 400,
+            )
+            choice  = response.choices[0]
+            content = (choice.message.content or "").strip()
+            if content:
+                return content
+            logger.warning(
+                "Empty answer for '{}' (attempt {}/{}, finish_reason={})",
+                cluster_label, attempt, max_attempts, choice.finish_reason,
+            )
+        except Exception as exc:
+            logger.error("Groq call failed for '{}' (attempt {}/{}): {}",
+                         cluster_label, attempt, max_attempts, exc)
+        await asyncio.sleep(3 * attempt)
+
+    return ""
 
 
 async def _ensure_cag_collection(qdrant: AsyncQdrantClient) -> None:
