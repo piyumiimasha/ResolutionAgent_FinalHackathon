@@ -22,7 +22,7 @@ groq:
 
     # Used by: l2_investigator, l3_resolver
     large:
-      model:       llama-3.3-70b-versatile
+      model:        openai/gpt-oss-120b
       context_window: 131072
       max_tokens:  2000
       temperature: 0.1
