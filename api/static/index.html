@@ -541,10 +541,18 @@ async function startVoiceCall(){
     });
 
     // Detect agent speaking / finished from TTS audio track
-    room.on(LC.RoomEvent.TrackSubscribed, (track) => {
+    room.on(LC.RoomEvent.TrackSubscribed, (track, publication, participant) => {
       if(track.kind === LC.Track.Kind.Audio) {
+        // Attach audio to DOM so browser plays it
+        const audioEl = track.attach();
+        audioEl.autoplay = true;
+        document.body.appendChild(audioEl);
         track.on('audioPlaybackStarted',  () => setVoiceState('speaking', 'Barge in to interrupt'));
-        track.on('audioPlaybackFinished', () => setVoiceState('listening', 'Speak your incident'));
+        track.on('audioPlaybackFinished', () => {
+          setVoiceState('listening', 'Speak your incident');
+          // Clean up audio element
+          track.detach().forEach(el => el.remove());
+        });
       }
     });
 
@@ -574,6 +582,8 @@ async function startVoiceCall(){
     });
 
     await room.connect(lkUrl, token);
+    // Enable audio playback so agent TTS is heard through speakers
+    await room.startAudio();
 
   } catch(err) {
     appendError('Voice connection failed: '+err.message);
