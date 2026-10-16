@@ -27,11 +27,12 @@ from memory.lt_store import LTStore
 from memory.episodic_store import EpisodicStore
 from memory.procedural_store import ProceduralStore
 from memory.prompts import DISTILLATION_PROMPT, LT_CONFIDENCE_THRESHOLD
+from infrastructure.config import get_groq_model
 
 load_dotenv()
 
 GROQ_API_KEY       = os.getenv("GROQ_API_KEY")
-DISTILL_MODEL      = "llama-3.1-8b-instant"   # fast + cheap
+DISTILL_MODEL      = get_groq_model("small")
 MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "1500"))
 
 

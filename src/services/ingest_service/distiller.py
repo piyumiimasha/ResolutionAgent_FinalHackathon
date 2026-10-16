@@ -32,7 +32,7 @@ from dotenv import load_dotenv
 import os
 from services.ingest_service.transcript_reader import TranscriptReader, ParsedTranscript
 from infrastructure.llm.embeddings import get_embeddings_batch
-from infrastructure.config import get_config, get_embedding_dimensions
+from infrastructure.config import get_config, get_embedding_dimensions, get_groq_model
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ GROQ_API_KEY        = os.getenv("GROQ_API_KEY")
 QDRANT_URL          = os.getenv("QDRANT_URL")
 QDRANT_API_KEY      = os.getenv("QDRANT_API_KEY")
 COLLECTION_NAME     = "procedural_memory"
-DISTILL_MODEL       = "llama-3.1-8b-instant"
+DISTILL_MODEL       = get_groq_model("small")
 CONCURRENT_CALLS    = 1
 BATCH_SIZE          = 10
 GROQ_MAX_RETRIES    = 5

@@ -74,7 +74,7 @@ def get_groq_model(tier: str) -> str:
         tier: "small" | "large" | "reason"
 
     Returns:
-        Model name string e.g. "llama-3.1-8b-instant"
+        Model name string e.g. "openai/gpt-oss-20b"
     """
     models = get_models()
     try:

@@ -54,7 +54,7 @@ Every request passes through the decision graph before anything else:
 ### Inner Layer — Agent Swarm
 Three sequential LangGraph nodes share a single `AgentState` TypedDict:
 
-- **L1 Triage** — classifies ticket type (1-4) and severity (low/medium/critical) using `llama-3.1-8b-instant`. Creates a ticket record via the Ticketing MCP.
+- **L1 Triage** — classifies ticket type (1-4) and severity (low/medium/critical) using the configured Groq small model. Creates a ticket record via the Ticketing MCP.
 - **L2 Investigator** — queries live server metrics from Supabase via the Observability MCP. Searches Qdrant `procedural_memory` (1,037 distilled SOPs) for similar past incidents. Synthesises findings using `llama-3.3-70b-versatile`.
 - **L3 Resolver** — retrieves the relevant runbook from Qdrant via CRAG (Corrective RAG with a 0.60 validation threshold). Returns a JSON-structured response separating the user-facing message from the internal action call. Executes mock remediation via the Action MCP and writes back to memory and the CAG cache.
 
@@ -129,7 +129,7 @@ Three MCP servers expose IT operations tools:
 
 | Task | Model | Reason |
 |---|---|---|
-| Guardrail, triage, distillation | `llama-3.1-8b-instant` (Groq) | Fast, cheap, ~500 tok/s |
+| Guardrail, triage, distillation | `openai/gpt-oss-20b` (Groq) | Fast, low-cost model |
 | Investigation, resolution | `llama-3.3-70b-versatile` (Groq) | Higher reasoning quality |
 | Voice fast-path | `llama-3.3-70b-versatile` (Groq) | Streaming, sub-2s latency |
 | Embeddings | `text-embedding-3-small` (OpenRouter) | 1,536 dims, consistent across all collections |

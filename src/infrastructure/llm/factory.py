@@ -69,7 +69,7 @@ def _build_groq_llm(tier: str) -> ChatGroq:
 @lru_cache(maxsize=1)
 def get_small_llm() -> BaseChatModel:
     """
-    Returns the small/fast LLM (llama-3.1-8b-instant).
+    Returns the configured small/fast LLM.
 
     Used by:
       - guardrail.py     (PASS/FAIL classification)

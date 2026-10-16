@@ -18,7 +18,7 @@ llm:
   # Two tiers — small for fast/cheap nodes, large for reasoning nodes
   # small → guardrail, router, l1_triage, distiller (bulk ingest)
   # large → l2_investigator, l3_resolver (need reasoning power)
-  small_model: llama-3.1-8b-instant      # Groq: ~500 tok/s, very cheap
+  small_model: openai/gpt-oss-20b        # Groq: fast, low-cost model
   large_model: llama-3.3-70b-versatile   # Groq: strong reasoning
 
   temperature:
@@ -170,7 +170,7 @@ ingest:
     upload_workers: 10          # parallel upload threads
 
   distillation:
-    model: llama-3.1-8b-instant   # Groq model for bulk distillation
+    model: openai/gpt-oss-20b     # Groq model for bulk distillation
     concurrent_calls: 5           # parallel Groq API calls (stay within rate limits)
     batch_size: 20                # Qdrant upsert batch size
     temperature: 0.1
@@ -237,4 +237,3 @@ voice:
   # Pipeline
   interruption_enabled: true    # Required for barge-in scoring (Part 3 criterion 2)
   sample_rate: 16000            # Hz — Deepgram + Silero expect 16kHz
-

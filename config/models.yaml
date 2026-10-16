@@ -14,7 +14,7 @@ groq:
   chat:
     # Used by: guardrail, router, l1_triage, distiller (bulk ingest)
     small:
-      model:       llama-3.1-8b-instant
+      model:       openai/gpt-oss-20b
       context_window: 131072              # 128K tokens
       max_tokens:  1000
       temperature: 0.1
@@ -113,7 +113,7 @@ context_budgets:
 # ============================================================================
 # Cost reference (approximate USD per 1M tokens, as of mid-2025)
 # ============================================================================
-# Groq llama-3.1-8b-instant    : FREE (within rate limits)
+# Groq openai/gpt-oss-20b      : fast small model (within rate limits)
 # Groq llama-3.3-70b-versatile : FREE (within rate limits)
 # OpenRouter gpt-4o-mini       : $0.15 input / $0.60 output
 # OpenRouter gpt-4o            : $2.50 input / $10.00 output
