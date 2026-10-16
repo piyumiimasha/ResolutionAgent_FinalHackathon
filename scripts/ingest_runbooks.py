@@ -12,7 +12,7 @@ Can be re-run anytime when runbooks are updated.
 """
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import os
 import re
@@ -24,8 +24,8 @@ from qdrant_client.models import PointStruct, VectorParams, Distance
 from loguru import logger
 from dotenv import load_dotenv
 
-from infastructure.llm.embeddings import get_embeddings_batch
-from infastructure.config import get_config, get_embedding_dimensions
+from infrastructure.llm.embeddings import get_embeddings_batch
+from infrastructure.config import get_config, get_embedding_dimensions
 
 load_dotenv()
 

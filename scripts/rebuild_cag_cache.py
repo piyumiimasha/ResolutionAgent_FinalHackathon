@@ -13,11 +13,12 @@ Can be re-run anytime to refresh the cache (e.g. after new transcripts added).
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import asyncio
 import sys
 from loguru import logger
-from src.services.ingest_service.cag_populator import run_cag_population
+from services.ingest_service.cag_populator import run_cag_population
 
 
 async def main():
