@@ -4,6 +4,8 @@ An agentic IT support and incident-resolution platform that transforms a 45-minu
 
 ---
 
+LiveUrl = https://resolutionagent-api.kindsea-4ab9fc28.southeastasia.azurecontainerapps.io/
+
 ## Architecture Overview
 
 ```
